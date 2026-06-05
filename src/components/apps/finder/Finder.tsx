@@ -21,6 +21,8 @@ export default function Finder() {
   const deleteNode = useFileSystemStore((s) => s.deleteNode)
   const move = useFileSystemStore((s) => s.move)
   const openFile = useAppIntent((s) => s.openFile)
+  const consumeFolder = useAppIntent((s) => s.consumeFolder)
+  const pendingFolder = useAppIntent((s) => s.pendingFolder)
 
   // Navigation history (back/forward).
   const [history, setHistory] = useState<string[]>([ROOT_ID])
@@ -48,6 +50,18 @@ export default function Finder() {
     setHistIndex(next.length - 1)
     setSelectedId(null)
   }
+
+  // Honor "open Finder at this folder" requests (e.g. from desktop icons).
+  useEffect(() => {
+    if (pendingFolder === undefined) return
+    const id = consumeFolder()
+    if (id && nodes[id]?.type === 'folder') {
+      setHistory((h) => [...h.slice(0, histIndex + 1), id])
+      setHistIndex((i) => i + 1)
+      setSelectedId(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFolder])
 
   const back = () => histIndex > 0 && setHistIndex(histIndex - 1)
   const forward = () =>

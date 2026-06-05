@@ -27,6 +27,20 @@ export function categoryColor(node: FSNode): string {
 
 export function FileIcon({ node, size = 40 }: { node: FSNode; size?: number }) {
   const cat = nodeCategory(node)
+
+  // Image files carry a data URL in content — show an actual thumbnail.
+  if (cat === 'image' && node.content.startsWith('data:')) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={node.content}
+        alt={node.name}
+        className="rounded object-cover"
+        style={{ width: size, height: size }}
+      />
+    )
+  }
+
   const Icon = categoryMeta(cat).icon
   return (
     <Icon

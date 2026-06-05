@@ -231,4 +231,16 @@
 
 ---
 
-*v1 COMPLETE — 2026-06-05. All six layers shipped. Future decisions (v2) appended below.*
+*v1 COMPLETE — 2026-06-05. All six layers shipped. Future decisions (post-v1) appended below.*
+
+## [2026-06-05] Decision: Desktop icons (system drive + Desktop folder contents)
+**Choice:** A `DesktopIcons` layer renders a "WebOS HD" drive plus the live contents of the Desktop FS folder, top-right. Double-click opens (folders via a new `openFolder` intent that navigates Finder; files via the default-app intent). Added `pendingFolder`/`openFolder`/`consumeFolder` to the app-intent bus.
+**Reason:** Matches macOS (drive on desktop + items from ~/Desktop) and makes the Desktop folder useful. Driven entirely by the existing FS store so it stays in sync.
+**Trade-off:** Single top-right column (no free-form icon positioning); fine for v1.
+**Deferred:** No
+
+## [2026-06-05] Decision: Server-side MEDIA library backed by a real on-disk folder
+**Choice:** Uploaded photos are stored as REAL FILES in a project folder (`./media`, override `WEBOS_MEDIA_DIR`), not embedded in the FS tree. New API routes: `GET/POST /api/media` (list/upload) and `GET/DELETE /api/media/[name]` (serve/remove). Images are downscaled client-side (≤2560px JPEG) before upload; filenames are sanitized + de-duplicated. The Settings → Wallpaper picker lists the folder, uploads to it, sets any image as wallpaper (`wallpaperId` = the `/api/media/<name>` URL), and can delete.
+**Reason:** The user wants photos that (a) persist server-side, (b) are available cross-device through the tunnel, and (c) live in a folder they can manage by hand (drop files in / delete). A real media directory satisfies all three; the app re-lists it on open + Refresh so disk-side changes show up. This is simpler and more transparent than moving the whole virtual FS to the server.
+**Trade-off:** Only photos/media are server-side. The rest of the virtual FS (folders, text files) and the wallpaper *selection* (`useSystemStore`) remain in per-browser localStorage — so the selected wallpaper does not auto-sync across devices, though the photo library does. The `/api/media` endpoints are unauthenticated (consistent with the client-only PIN); there is a 15 MB/file cap, image-only filter, and path-traversal guard. Superseded the earlier short-lived localStorage data-URL upload approach (reverted the Finder upload button to avoid the ~5MB quota problem).
+**Deferred:** Full server-side sync of the FS tree + settings (true whole-account cross-device) remains a possible follow-up.

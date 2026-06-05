@@ -1,11 +1,22 @@
 'use client'
 
-import { useState } from 'react'
-import { Palette, Image as ImageIcon, Database, Info, Check } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  Palette,
+  Image as ImageIcon,
+  Database,
+  Info,
+  Check,
+  Upload,
+  Trash2,
+  RefreshCw,
+} from 'lucide-react'
 import { useSystemStore } from '@/store/useSystemStore'
 import { useFileSystemStore } from '@/store/useFileSystemStore'
+import { useUIStore } from '@/store/useUIStore'
 import { ACCENT_COLORS } from '@/lib/constants'
 import { WALLPAPERS } from '@/lib/wallpapers'
+import { listMedia, uploadMedia, deleteMedia, type MediaItem } from '@/lib/upload'
 
 type Section = 'appearance' | 'wallpaper' | 'storage' | 'about'
 
@@ -116,11 +127,70 @@ function Appearance() {
 function WallpaperPicker() {
   const wallpaperId = useSystemStore((s) => s.wallpaperId)
   const setWallpaper = useSystemStore((s) => s.setWallpaper)
+  const pushNotification = useUIStore((s) => s.pushNotification)
+
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [photos, setPhotos] = useState<MediaItem[]>([])
+
+  const refresh = async () => setPhotos(await listMedia())
+
+  // Load the server media folder on open (also reflects files added on disk).
+  useEffect(() => {
+    refresh()
+  }, [])
+
+  const handleUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setBusy(true)
+    const { saved, skipped } = await uploadMedia(files)
+    await refresh()
+    setBusy(false)
+    if (saved.length > 0) setWallpaper(saved[0].url)
+    pushNotification({
+      appId: 'settings',
+      title: saved.length ? 'Photos uploaded' : 'Upload failed',
+      body:
+        `${saved.length} photo${saved.length === 1 ? '' : 's'} saved to the media folder.` +
+        (skipped.length ? ` ${skipped.length} skipped (${skipped[0].reason}).` : ''),
+    })
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  const removePhoto = async (item: MediaItem) => {
+    if (await deleteMedia(item.name)) {
+      if (wallpaperId === item.url) setWallpaper(WALLPAPERS[0].id)
+      await refresh()
+    }
+  }
 
   return (
     <div>
-      <SectionTitle>Wallpaper</SectionTitle>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="mb-4 flex items-center justify-between">
+        <SectionTitle>Wallpaper</SectionTitle>
+        <button
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          className="flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[13px] font-medium text-white hover:brightness-110 disabled:opacity-60"
+        >
+          <Upload size={15} />
+          {busy ? 'Uploading…' : 'Upload Photos'}
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          onChange={(e) => handleUpload(e.target.files)}
+        />
+      </div>
+
+      {/* Built-in presets */}
+      <p className="mb-2 text-[13px] text-[var(--color-text-secondary)]">
+        Default Wallpapers
+      </p>
+      <div className="mb-6 grid grid-cols-2 gap-3">
         {WALLPAPERS.map((w) => (
           <button
             key={w.id}
@@ -144,6 +214,66 @@ function WallpaperPicker() {
           </button>
         ))}
       </div>
+
+      {/* Uploaded photos (the server media folder) */}
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-[13px] text-[var(--color-text-secondary)]">
+          Your Photos
+        </p>
+        <button
+          onClick={refresh}
+          className="flex items-center gap-1 text-[12px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+        >
+          <RefreshCw size={12} /> Refresh
+        </button>
+      </div>
+
+      {photos.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-[var(--color-window-border)] p-4 text-center text-[12px] text-[var(--color-text-tertiary)]">
+          No photos yet. Use “Upload Photos” above — or drop image files into the
+          server’s <code className="text-[var(--color-text-secondary)]">media/</code>{' '}
+          folder and hit Refresh.
+        </p>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {photos.map((item) => {
+            const selected = wallpaperId === item.url
+            return (
+              <div
+                key={item.name}
+                className={`group relative overflow-hidden rounded-xl ${
+                  selected ? 'ring-2 ring-[var(--color-accent)]' : 'ring-1 ring-white/10'
+                }`}
+                style={{ aspectRatio: '16/10' }}
+              >
+                <button onClick={() => setWallpaper(item.url)} className="h-full w-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.url}
+                    alt={item.name}
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+                <span className="pointer-events-none absolute bottom-0 left-0 right-0 truncate bg-black/40 px-2 py-1 text-left text-[11px] text-white">
+                  {item.name}
+                </span>
+                {selected && (
+                  <span className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent)]">
+                    <Check size={13} className="text-white" />
+                  </span>
+                )}
+                <button
+                  onClick={() => removePhoto(item)}
+                  aria-label={`Delete ${item.name}`}
+                  className="absolute right-2 top-2 rounded-full bg-black/50 p-1 text-white/80 opacity-0 transition-opacity hover:text-white group-hover:opacity-100"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

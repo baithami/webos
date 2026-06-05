@@ -160,7 +160,29 @@ Create `.env.local` in project root (never commit this):
 NEXT_PUBLIC_APP_NAME=WebOS
 NEXT_PUBLIC_APP_VERSION=1.0.0
 NEXT_PUBLIC_DEFAULT_PIN=0000
+
+# Optional: where uploaded photos are stored on disk.
+# Defaults to ./media (relative to the process working directory).
+# WEBOS_DATA_DIR is unused; the media library uses WEBOS_MEDIA_DIR.
+WEBOS_MEDIA_DIR=/var/www/webos/media
 ```
+
+## Media folder (uploaded photos)
+
+Uploaded wallpapers/photos are stored as real files in `WEBOS_MEDIA_DIR`
+(default `./media`). This is **runtime user data**, gitignored and NOT part of
+the build:
+
+- It must live on a **writable** path the Node process owns.
+- You can manage it by hand: drop image files in to add them (they appear in
+  Settings → Wallpaper → "Your Photos" after Refresh), or delete files to remove
+  them.
+- **Back it up / keep it across deploys** — re-deploying the app does not touch
+  this folder as long as the path is stable (point `WEBOS_MEDIA_DIR` at a
+  persistent location outside the build directory, e.g. `/var/www/webos/media`).
+- The `/api/media` endpoints are unauthenticated (the PIN is client-side only),
+  with a 15 MB/file cap and an image-only filter. If the tunnel hostname is
+  public, consider a Cloudflare Access policy in front of it.
 
 ---
 

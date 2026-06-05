@@ -13,7 +13,7 @@ import {
 import { useFileSystemStore } from '@/store/useFileSystemStore'
 import { useAppIntent } from '@/store/useAppIntent'
 import { getExtension } from '@/lib/fileTypes'
-import { pathString, type FSNode } from '@/lib/fs'
+import { pathString, nodeCategory, type FSNode } from '@/lib/fs'
 
 type Mode = 'plain' | 'rich'
 
@@ -114,8 +114,11 @@ export default function TextEdit() {
       setDoc((d) => ({ ...d, content: richRef.current!.innerHTML, dirty: true }))
   }
 
+  // Only offer text-editable files (skip images and other binaries stored as
+  // data URLs, which would render as base64 noise).
+  const TEXTUAL = new Set(['text', 'richtext', 'code', 'unknown'])
   const openableFiles = Object.values(nodes).filter(
-    (n) => n.type === 'file'
+    (n) => n.type === 'file' && TEXTUAL.has(nodeCategory(n))
   )
 
   return (

@@ -53,6 +53,13 @@ export function seedFileSystem(): NodeMap {
     seedNode('music', 'Music', 'folder', ROOT_ID),
     seedNode('movies', 'Movies', 'folder', ROOT_ID),
     seedNode(
+      'desktop-readme',
+      'Read Me.txt',
+      'file',
+      'desktop',
+      'Items in your Desktop folder show up right here on the desktop.\n\nTry creating a file or folder in Finder (or with the Terminal) inside Desktop — it will appear on the desktop automatically.'
+    ),
+    seedNode(
       'welcome',
       'Welcome.txt',
       'file',

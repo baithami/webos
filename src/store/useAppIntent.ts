@@ -7,12 +7,18 @@ import { useWindowStore } from './useWindowStore'
 
 interface AppIntentState {
   pendingFile: Record<string, string | undefined>
+  /** Folder id Finder should navigate to on its next render. */
+  pendingFolder: string | undefined
   openFile: (appId: string, fileId: string) => void
   consumeFile: (appId: string) => string | undefined
+  /** Open Finder navigated to a specific folder. */
+  openFolder: (folderId: string) => void
+  consumeFolder: () => string | undefined
 }
 
 export const useAppIntent = create<AppIntentState>()((set, get) => ({
   pendingFile: {},
+  pendingFolder: undefined,
 
   openFile: (appId, fileId) => {
     set((s) => ({ pendingFile: { ...s.pendingFile, [appId]: fileId } }))
@@ -25,5 +31,16 @@ export const useAppIntent = create<AppIntentState>()((set, get) => ({
       set((s) => ({ pendingFile: { ...s.pendingFile, [appId]: undefined } }))
     }
     return fileId
+  },
+
+  openFolder: (folderId) => {
+    set({ pendingFolder: folderId })
+    useWindowStore.getState().openApp('finder')
+  },
+
+  consumeFolder: () => {
+    const folderId = get().pendingFolder
+    if (folderId !== undefined) set({ pendingFolder: undefined })
+    return folderId
   },
 }))
