@@ -1,14 +1,17 @@
 'use client'
 
 import { getApp } from '@/lib/apps'
+import Finder from './finder/Finder'
+import TextEdit from './TextEdit'
 
 /**
- * App body registry. Real applications (Finder, TextEdit, Terminal, …) arrive
- * in Layer 4; until then every window renders this placeholder so the window
- * manager can be built and tested end-to-end. Layer 4 swaps entries into
- * CONTENT keyed by appId.
+ * App body registry, keyed by appId. Apps register here as they are built in
+ * Layer 4; anything not yet registered falls back to the placeholder below.
  */
-const CONTENT: Record<string, React.ComponentType> = {}
+const CONTENT: Record<string, React.ComponentType> = {
+  finder: Finder,
+  textedit: TextEdit,
+}
 
 export default function AppContent({ appId }: { appId: string }) {
   const Specific = CONTENT[appId]
@@ -18,7 +21,7 @@ export default function AppContent({ appId }: { appId: string }) {
   const Icon = app?.icon
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-center">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
       {Icon && (
         <div
           className={`flex h-16 w-16 items-center justify-center rounded-[22%] bg-gradient-to-b ${app?.tile} shadow-lg`}

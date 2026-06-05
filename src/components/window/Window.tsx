@@ -203,8 +203,8 @@ export default function Window({ win, zIndex, active }: WindowProps) {
         </span>
       </div>
 
-      {/* App body */}
-      <div className="min-h-0 flex-1 overflow-auto bg-[var(--color-window-bg)] p-4">
+      {/* App body — apps own their own padding/scroll. */}
+      <div className="min-h-0 flex-1 overflow-hidden bg-[var(--color-window-bg)]">
         <AppContent appId={win.appId} />
       </div>
 
