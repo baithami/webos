@@ -134,6 +134,30 @@
 **Trade-off:** None.
 **Deferred:** No
 
+## [2026-06-05] Decision: Normalized flat NodeMap for the file system
+**Choice:** The FS tree is stored as a flat `Record<id, FSNode>` with `parentId` pointers rather than a nested children tree. Pure helpers in `src/lib/fs.ts` derive children/paths; the store only mutates the map.
+**Reason:** Move/rename/delete become localized map edits (no deep tree rewriting), descendant/cycle checks are simple parent walks, and persisting/diffing a flat object is trivial. Keeping reads as pure helpers makes them unit-testable without React.
+**Trade-off:** Listing a folder's children is an O(n) scan of the map; negligible at this scale and avoidable later with an index if needed.
+**Deferred:** No
+
+## [2026-06-05] Decision: Fixed seed timestamps; runtime ids via crypto.randomUUID
+**Choice:** Seed nodes use a constant timestamp; only user-created nodes call `Date.now()`. New ids use `crypto.randomUUID()` with a Math.random fallback.
+**Reason:** A constant seed timestamp keeps the initial store identical on server and client (no hydration drift), while runtime mutations are browser-only so real timestamps/uuids are safe there.
+**Trade-off:** Seed file "created" dates are not the user's real first-run time; immaterial for a simulation.
+**Deferred:** No
+
+## [2026-06-05] Decision: Sibling name de-duplication on create/rename/move
+**Choice:** Any operation that places a node in a folder runs `dedupeName`, turning collisions into "name 2", "name 3" (extension-aware: "report 2.txt").
+**Reason:** Mirrors Finder behavior and guarantees unique sibling names so path resolution stays unambiguous, without throwing errors at the user mid-action (matches the "never block, choose pragmatic path" directive).
+**Trade-off:** Silent rename rather than a conflict prompt; acceptable and macOS-like.
+**Deferred:** No
+
+## [2026-06-05] Decision: Server-side FS persistence API route stays deferred
+**Choice:** Did not build the optional Layer 3 API route; FS persists to localStorage via Zustand persist only (store key `webos-filesystem`, version 1).
+**Reason:** The 2026-06-04 seed decision marks server persistence as an optional extension triggered only by a cross-device-sync need, which v1 does not have. The persist `version` field is in place so a future migration to server storage has a hook.
+**Trade-off:** FS is per-browser, ~5MB cap, not shared across devices — already accepted in the seed decision.
+**Deferred:** Yes — revisit for cross-device sync (also a v2 ROADMAP item).
+
 ---
 
 *All future decisions appended below by Claude Code during build sessions.*
