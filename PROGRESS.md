@@ -7,10 +7,10 @@
 
 ## Current Status
 
-**Active Layer:** Layer 5 — System Features  
-**Overall Progress:** 4 of 6 layers complete  
-**Last Session:** 2026-06-05 — Layer 4 completed  
-**Next Action:** Build Spotlight (⌘+Space), notification center, dark/light toggle surface, accent picker surface, login/boot screen (PIN 0000), sleep/wake screen
+**Active Layer:** Layer 6 — Polish & Performance  
+**Overall Progress:** 5 of 6 layers complete  
+**Last Session:** 2026-06-05 — Layer 5 completed  
+**Next Action:** Lazy-load app components via dynamic(), audit Framer Motion usage + frosted glass coverage, harden mobile overlay, eliminate console errors, final build + PM2 deployment verification
 
 ---
 
@@ -22,7 +22,7 @@
 | 2 | Window Manager | 🟢 Complete | 2026-06-05 |
 | 3 | Virtual File System | 🟢 Complete | 2026-06-05 |
 | 4 | Built-in Apps | 🟢 Complete | 2026-06-05 |
-| 5 | System Features | 🔴 Not started | — |
+| 5 | System Features | 🟢 Complete | 2026-06-05 |
 | 6 | Polish & Performance | 🔴 Not started | — |
 
 Status key: 🔴 Not started · 🟡 In progress · 🟢 Complete
@@ -75,13 +75,13 @@ Status key: 🔴 Not started · 🟡 In progress · 🟢 Complete
 
 ## Layer 5 — System Features
 
-- [ ] Spotlight search (⌘ + Space)
-- [ ] Notification center
-- [ ] Dark / light mode toggle
-- [ ] Accent color picker
-- [ ] Login/boot screen
-- [ ] Sleep/wake screen
-- [ ] `npm run build` passes clean
+- [x] Spotlight search (⌘ + Space)
+- [x] Notification center
+- [x] Dark / light mode toggle (Control Center + Settings)
+- [x] Accent color picker (Control Center + Settings)
+- [x] Login/boot screen
+- [x] Sleep/wake screen
+- [x] `npm run build` passes clean
 
 ## Layer 6 — Polish & Performance
 
@@ -103,4 +103,5 @@ Status key: 🔴 Not started · 🟡 In progress · 🟢 Complete
 | 2026-06-05 | Scaffolded Next.js 14 (TS+Tailwind) manually; installed Framer Motion, Zustand, lucide-react; bumped Next to patched 14.2.35. Built full design system (globals.css tokens, glass, shadows, Z-scale, animation variants, accent list). Desktop canvas + wallpaper layer (4 gradient-fallback options). Menu bar (Apple logo, app menus, live clock, status icons). Dock with cursor-proximity magnification + launch bounce + running-indicator slots. Desktop right-click context menu (wallpaper submenu, theme toggle). Mobile degradation overlay (<768px). `npm run build` clean; prod server smoke-tested 200. Committed (a08c945). | Layer 2 — Window Manager |
 | 2026-06-05 | Window store (Zustand, single-window-per-app, stacking `order` array, open/close/focus/minimize/restore/fullscreen/setBounds with min-size + menubar clamps). Window component: pointer-event drag from titlebar (mouse+touch), 8-handle resize, traffic lights (hover glyphs, dim when inactive), focus-on-pointerdown, double-click + green-light fullscreen with bounds restore, edge snapping (top→maximize, left/right→half). WindowLayer with AnimatePresence (open/close/minimize variants), z from stacking index. Minimize-to-dock genie transform toward bottom-center. App-content placeholder registry (Layer 4 fills it). Dock wired to openApp/restore/focus with live running indicators. `npm run build` clean; standalone server smoke-tested 200. Committed (0156662). | Layer 3 — Virtual File System |
 | 2026-06-05 | Virtual file system. fileTypes.ts: extension→category (text/richtext/image/audio/video/code/pdf/archive/unknown) with labels + lucide icons + defaultApp. fs.ts: normalized flat NodeMap model, ROOT_ID, seed home tree (Desktop/Documents/Downloads/Pictures/Music/Movies + sample files, fixed seed timestamps for SSR determinism), pure helpers (getChildren, sortNodes folders-first, getPath, pathString, getByPath with ./.. , isDescendant, dedupeName, collectSubtree, nodeCategory). useFileSystemStore: Zustand + persist (localStorage key webos-filesystem v1), CRUD — createNode/updateContent/rename/deleteNode(recursive)/move(cycle-guarded)/reset, all with sibling name dedupe + root protections. Verified with 23 tsx unit tests (all pass). Optional server API route deferred per seed decision. `npm run build` clean. Committed (b981ff4). | Layer 4 — Built-in Apps |
+| 2026-06-05 | System features. useUIStore (spotlight/notifications/control-center/apple-menu flags, notification list push/dismiss/clear). useSessionStore (phase booting→locked→active⇄asleep; unlock via PIN 0000, sleep/wake/lock; not persisted → PIN每 load). Spotlight (⌘+Space) searches apps + files, keyboard nav, Enter opens (apps→openApp, files→intent bus). NotificationCenter slide-in panel + cards w/ relative time + welcome notification on activate. ControlCenter popover (theme toggle + accent swatches + decorative wifi/bt). BootScreen (Apple logo + progress, 1.8s). LoginScreen (4-dot PIN pad, keyboard + on-screen, shake on wrong, wallpaper bg). SleepScreen (black, wake on any key/click). SystemLayer orchestrates phases + global hotkeys + popover click-catcher. MenuBar made interactive (Apple menu: About/Settings/Sleep/Lock; Spotlight, Control Center, notifications buttons). `npm run build` clean; server 200. Committed (this layer). | Layer 6 — Polish & Performance |
 | 2026-06-05 | Built-in apps (all 8), built in 4 batches. Plumbing: Window body no longer imposes padding/scroll (apps own layout); useAppIntent bus for cross-app file opens. **Finder** (b2a1e84): sidebar favorites, icon/list/column views, back/forward history, new folder/file + inline rename, delete, drag-to-move onto folders, double-click open routed via intent bus, context menus. **TextEdit** (b2a1e84): plain+rich (contentEditable, bold/italic/underline), New/Open/Save to FS, dirty tracking, intent-bus open, Save-As → Documents. **Notes** (8ef32d1): FS-backed in lazy "Notes" folder, list/editor, first-line titles, live save. **Terminal** (8ef32d1): simulated shell over FS — ls/cd/pwd/cat/mkdir/touch/rm/open/echo/whoami/date/clear/help, cwd + path resolution + cmd history. **Calculator** (cbe21c0): standard+scientific state machine. **Clock** (cbe21c0): world clock (6 cities, Intl timeZone) + month calendar. **Settings** (this batch): appearance (theme/accent), wallpaper picker, storage (FS reset), about. **Safari** (this batch): iframe browser, address bar w/ search fallback, own back/forward stack, start page shortcuts. All registered in AppContent. `npm run build` clean; standalone server 200. | Layer 5 — System Features |

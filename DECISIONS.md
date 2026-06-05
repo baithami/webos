@@ -188,6 +188,24 @@
 **Trade-off:** Back/forward reflect our navigations, not in-page link clicks inside the frame; many sites refuse framing (noted on the start page).
 **Deferred:** No
 
+## [2026-06-05] Decision: Session is not persisted — PIN on every load
+**Choice:** `useSessionStore` starts at `booting` on every page load and requires the PIN to reach `active`; it is intentionally not persisted. Sleep → asleep; waking returns to the lock screen (not straight to active).
+**Reason:** Matches a cold-boot/lock-screen mental model and keeps the boot + login screens demonstrable on every visit, which is the point of the feature. Waking to lock mirrors macOS "require password after sleep".
+**Trade-off:** Users re-enter the PIN each visit; acceptable for a showcase OS (the PIN hint is shown on the lock screen).
+**Deferred:** No
+
+## [2026-06-05] Decision: Dark/light + accent surfaced in a menu-bar Control Center
+**Choice:** Built a Control Center popover (theme toggle + accent swatches) in addition to the Settings panel from Layer 4, rather than a new state model.
+**Reason:** Layer 5's checklist lists theme toggle + accent picker as system features; both already read/write `useSystemStore`, so the work was a second *surface*, not new state. Quick menu-bar access matches macOS.
+**Trade-off:** Two entry points to the same settings; intentional (Control Center = quick, Settings = full).
+**Deferred:** No
+
+## [2026-06-05] Decision: Single full-screen click-catcher dismisses all popovers
+**Choice:** When any system popover (Spotlight, notifications, Control Center, Apple menu) is open, SystemLayer renders one transparent full-screen catcher at z 750 (below the popovers, above the rest) whose click/right-click closes everything.
+**Reason:** One catcher gives consistent outside-click-to-dismiss for every popover without per-component document listeners, and the z-layering keeps popovers interactive while blocking stray clicks elsewhere.
+**Trade-off:** While a popover is open the rest of the UI is click-inert (clicking it dismisses first); this is standard popover behavior.
+**Deferred:** No
+
 ---
 
 *All future decisions appended below by Claude Code during build sessions.*

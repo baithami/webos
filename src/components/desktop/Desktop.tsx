@@ -9,6 +9,7 @@ import Dock from './Dock'
 import DesktopContextMenu from './DesktopContextMenu'
 import MobileOverlay from './MobileOverlay'
 import WindowLayer from '@/components/window/WindowLayer'
+import SystemLayer from '@/components/system/SystemLayer'
 
 export interface ContextMenuState {
   x: number
@@ -77,6 +78,7 @@ export default function Desktop() {
         />
       )}
 
+      <SystemLayer />
       <MobileOverlay />
     </main>
   )
