@@ -206,6 +206,29 @@
 **Trade-off:** While a popover is open the rest of the UI is click-inert (clicking it dismisses first); this is standard popover behavior.
 **Deferred:** No
 
+## [2026-06-05] Decision: Per-app code splitting via next/dynamic
+**Choice:** AppContent loads each app component through `next/dynamic(..., { ssr: false, loading: AppLoading })` instead of static imports.
+**Reason:** Apps are client-only and only needed when opened; splitting them dropped the route's First Load JS from ~66 kB to ~57 kB and gives each app its own on-demand chunk (verified Calculator/Terminal in separate chunks). A spinner covers the brief load.
+**Trade-off:** A one-frame loading spinner the first time an app opens; negligible.
+**Deferred:** No
+
+## [2026-06-05] Decision: Window position/size stays CSS-transition, not Framer
+**Choice:** The "all animations Framer Motion" goal applies to user-facing transitions (window open/close/minimize, Spotlight, notifications, Control Center, Apple menu, dock magnification, boot/login/sleep). Window drag/resize/snap/fullscreen continue to use CSS transitions on left/top/width/height.
+**Reason:** Re-confirms the Layer 2 decision — animating layout via Framer would fight the pointer-driven drag/resize that writes those same properties. CSS transitions (disabled mid-interaction) give smooth snap/fullscreen without conflict.
+**Trade-off:** Not literally 100% Framer; the exception is deliberate and isolated to window geometry.
+**Deferred:** No
+
+## [2026-06-05] Decision: Standalone server is the production entrypoint
+**Choice:** Production runs `node .next/standalone/server.js` (via `ecosystem.config.js` / `npm run start:standalone`), with `npm run build:standalone` copying `.next/static` (+ `public`) next to the bundle. DEPLOYMENT.md updated to match; the owner's original `next start` flow is noted as the non-optimized fallback.
+**Reason:** Resolves the Layer 1 open item — `output: 'standalone'` makes `next start` non-optimal. The standalone bundle is the intended artifact and was verified to serve HTTP 200.
+**Trade-off:** Requires the post-build asset copy (scripted) that plain `next start` wouldn't.
+**Deferred:** No
+
+## [2026-06-05] Note: Console-error verification was static, not in-browser
+**Observation:** "Zero console errors in production" was checked via TypeScript + ESLint clean build, SSR returning 200 with clean server logs, and a static audit (AnimatePresence keys, list keys, no stray console.*, hydration guarded by the mount gate). A real headless-browser run was attempted with Playwright but Chromium failed to launch — the sandbox lacks OS libraries (libatk-1.0.so.0, …) that need root to install.
+**Action:** Recommend running the Playwright console sweep (boot → PIN 0000 → open each app → Spotlight) on the actual Ubuntu 22.04 deploy host, where `npx playwright install-deps` can provision the libs.
+**Deferred:** Yes — final in-browser console confirmation on the deploy host.
+
 ---
 
-*All future decisions appended below by Claude Code during build sessions.*
+*v1 COMPLETE — 2026-06-05. All six layers shipped. Future decisions (v2) appended below.*

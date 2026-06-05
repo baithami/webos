@@ -36,21 +36,28 @@ module.exports = nextConfig
 
 ## Build & Start Commands
 
+> **Standalone note (added Layer 6):** because `next.config.js` sets
+> `output: 'standalone'`, the optimized production entrypoint is the generated
+> bundle at `.next/standalone/server.js`, **not** `next start` (`next start`
+> works but prints a warning and doesn't use the standalone bundle). The
+> standalone output omits static assets, so they must be copied next to the
+> server bundle after each build. `npm run build:standalone` does the build +
+> copy in one step, and `ecosystem.config.js` points PM2 at the bundle.
+
 ```bash
 # Install dependencies
 npm install
 
-# Build for production
-npm run build
+# Build for production (standalone) — builds and copies .next/static + public
+npm run build:standalone
 
-# Start with PM2
-pm2 start npm --name "webos" -- start
+# Start with PM2 via the ecosystem file (runs .next/standalone/server.js)
+pm2 start ecosystem.config.js
 pm2 save
 pm2 startup
 
-# Or use the ecosystem file (see below)
-pm2 start ecosystem.config.js
-pm2 save
+# Manual start (no PM2), for a quick check:
+npm run start:standalone   # = node .next/standalone/server.js
 ```
 
 ---

@@ -1,28 +1,36 @@
 'use client'
 
+import dynamic from 'next/dynamic'
+import { Loader2 } from 'lucide-react'
 import { getApp } from '@/lib/apps'
-import Finder from './finder/Finder'
-import TextEdit from './TextEdit'
-import Notes from './Notes'
-import Terminal from './Terminal'
-import Calculator from './Calculator'
-import ClockApp from './ClockApp'
-import Settings from './Settings'
-import Safari from './Safari'
 
-/**
- * App body registry, keyed by appId. Apps register here as they are built in
- * Layer 4; anything not yet registered falls back to the placeholder below.
- */
+/** Spinner shown while an app's chunk loads. */
+function AppLoading() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-[var(--color-window-bg)]">
+      <Loader2
+        size={26}
+        className="animate-spin text-[var(--color-text-tertiary)]"
+      />
+    </div>
+  )
+}
+
+// Each app is code-split via next/dynamic so its bundle only loads when the app
+// is first opened. ssr:false is correct — these are client-only and never part
+// of the initial desktop render.
+const dyn = (loader: Parameters<typeof dynamic>[0]) =>
+  dynamic(loader, { loading: AppLoading, ssr: false })
+
 const CONTENT: Record<string, React.ComponentType> = {
-  finder: Finder,
-  textedit: TextEdit,
-  notes: Notes,
-  terminal: Terminal,
-  calculator: Calculator,
-  clock: ClockApp,
-  settings: Settings,
-  safari: Safari,
+  finder: dyn(() => import('./finder/Finder')),
+  textedit: dyn(() => import('./TextEdit')),
+  notes: dyn(() => import('./Notes')),
+  terminal: dyn(() => import('./Terminal')),
+  calculator: dyn(() => import('./Calculator')),
+  clock: dyn(() => import('./ClockApp')),
+  settings: dyn(() => import('./Settings')),
+  safari: dyn(() => import('./Safari')),
 }
 
 export default function AppContent({ appId }: { appId: string }) {
@@ -45,8 +53,7 @@ export default function AppContent({ appId }: { appId: string }) {
         {app?.name ?? appId}
       </p>
       <p className="max-w-xs text-[13px] text-[var(--color-text-secondary)]">
-        This app arrives in Layer 4. The window manager is fully functional —
-        drag, resize, focus, minimize, and fullscreen all work.
+        This app isn’t available yet.
       </p>
     </div>
   )
