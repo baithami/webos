@@ -104,6 +104,36 @@
 **Action:** Left DEPLOYMENT.md unchanged; flagging here so the deploy step can switch to the standalone server entrypoint if the optimized bundle is wanted.
 **Deferred:** Yes — reconcile when Layer 6 deployment verification runs.
 
+## [2026-06-05] Decision: One window per app (window id === appId) in v1
+**Choice:** The window manager runs a single window instance per app; the window's id is the appId.
+**Reason:** Collapses dock running-indicators, focus, and "click dock to restore/focus" into trivial lookups. Most v1 built-in apps are single-window by nature.
+**Trade-off:** No multiple Finder/TextEdit windows. Multi-window is explicitly a v2 concern.
+**Deferred:** Yes — revisit if a Layer 4 app genuinely needs concurrent windows.
+
+## [2026-06-05] Decision: Stacking via an `order` array, not a z-counter
+**Choice:** Window store keeps `order: string[]` (bottom→top). Render assigns `zIndex = Z.window + index`; focusing moves the id to the end of `order`.
+**Reason:** Z stays bounded by the number of open windows (never collides with dock=500 / menubar=600), and "active window" is simply the topmost non-minimized id. Avoids the unbounded-counter drift of incrementing z on every focus.
+**Trade-off:** Every focus rewrites the array (O(n)); negligible at realistic window counts.
+**Deferred:** No
+
+## [2026-06-05] Decision: Manual pointer-event drag/resize instead of Framer Motion drag
+**Choice:** Drag (from titlebar) and the 8 resize handles use native pointer events with `setPointerCapture`, writing bounds to the store on each move. Framer Motion is reserved for open/close/minimize transforms only.
+**Reason:** Positioning via `left/top` (layout) keeps the transform channel free for Framer's scale/translate minimize+open animations, so the two never fight. Pointer events give unified mouse+touch and precise 8-direction resize with fixed-opposite-edge math and min-size clamps.
+**Trade-off:** More hand-written interaction code than `drag` props; in exchange, no transform/layout conflicts and full control over snapping.
+**Deferred:** No
+
+## [2026-06-05] Decision: Edge snapping + fullscreen semantics
+**Choice:** On drag-end, the pointer position triggers snapping — top edge → maximize to work area, left/right edge → half. Fullscreen (green light / double-click titlebar) is a separate state that saves `restoreBounds` and fills the area below the 28px menu bar; resize handles hide while fullscreen.
+**Reason:** Satisfies ROADMAP "snap to screen edges on drag" while keeping the macOS fullscreen toggle distinct from transient snapping.
+**Trade-off:** Snapping sets bounds without persisting a "snapped" state, so a snapped window is just a normal positioned window (no auto-unsnap on next drag — matches expectation).
+**Deferred:** No
+
+## [2026-06-05] Decision: App-body registry placeholder seam (AppContent)
+**Choice:** `AppContent` resolves an appId to a component from a `CONTENT` map that is empty in Layer 2, falling back to a styled placeholder. Layer 4 populates the map.
+**Reason:** Lets the window manager be built and verified end-to-end now, with a clean single insertion point for real apps later — no Window changes needed in Layer 4.
+**Trade-off:** None.
+**Deferred:** No
+
 ---
 
 *All future decisions appended below by Claude Code during build sessions.*

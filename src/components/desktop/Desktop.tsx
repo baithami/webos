@@ -8,6 +8,7 @@ import MenuBar from './MenuBar'
 import Dock from './Dock'
 import DesktopContextMenu from './DesktopContextMenu'
 import MobileOverlay from './MobileOverlay'
+import WindowLayer from '@/components/window/WindowLayer'
 
 export interface ContextMenuState {
   x: number
@@ -64,6 +65,7 @@ export default function Desktop() {
       onClick={closeContextMenu}
     >
       <Wallpaper />
+      <WindowLayer />
       <MenuBar />
       <Dock />
 

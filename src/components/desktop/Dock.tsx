@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion, useMotionValue } from 'framer-motion'
 import { PINNED_APPS } from '@/lib/apps'
 import { Z } from '@/lib/constants'
+import { useWindowStore } from '@/store/useWindowStore'
 import DockItem from './DockItem'
 
 /**
@@ -15,10 +16,27 @@ export default function Dock() {
   // Infinity = cursor not over the dock; tiles rest at base size.
   const mouseX = useMotionValue<number>(Infinity)
   const [bouncing, setBouncing] = useState<string | null>(null)
+  const windows = useWindowStore((s) => s.windows)
+  const openApp = useWindowStore((s) => s.openApp)
+  const toggleMinimize = useWindowStore((s) => s.toggleMinimize)
 
   const handleLaunch = (id: string) => {
-    setBouncing(id)
-    window.setTimeout(() => setBouncing((cur) => (cur === id ? null : cur)), 600)
+    const existing = windows[id]
+    if (existing && !existing.isMinimized) {
+      // Already open and visible → bring to front (openApp focuses it).
+      openApp(id)
+    } else if (existing) {
+      // Minimized → restore.
+      toggleMinimize(id)
+    } else {
+      // Not running → launch with a bounce.
+      openApp(id)
+      setBouncing(id)
+      window.setTimeout(
+        () => setBouncing((cur) => (cur === id ? null : cur)),
+        600
+      )
+    }
   }
 
   return (
@@ -36,6 +54,7 @@ export default function Dock() {
             key={app.id}
             app={app}
             mouseX={mouseX}
+            isRunning={Boolean(windows[app.id])}
             bouncing={bouncing === app.id}
             onLaunch={handleLaunch}
           />

@@ -1,0 +1,223 @@
+'use client'
+
+import { useRef, useState } from 'react'
+import { motion } from 'framer-motion'
+import {
+  useWindowStore,
+  WINDOW_LIMITS,
+  type WindowInstance,
+} from '@/store/useWindowStore'
+import { Z } from '@/lib/constants'
+import AppContent from '@/components/apps/AppContent'
+import TrafficLights from './TrafficLights'
+
+const { MIN_W, MIN_H, MENUBAR_H } = WINDOW_LIMITS
+const SNAP_EDGE = 6 // px from a screen edge that triggers a snap
+
+interface ResizeEdges {
+  top?: boolean
+  bottom?: boolean
+  left?: boolean
+  right?: boolean
+}
+
+const HANDLES: { dir: string; className: string; edges: ResizeEdges }[] = [
+  { dir: 'n', className: 'left-2 right-2 top-0 h-1.5 cursor-ns-resize', edges: { top: true } },
+  { dir: 's', className: 'left-2 right-2 bottom-0 h-1.5 cursor-ns-resize', edges: { bottom: true } },
+  { dir: 'e', className: 'top-2 bottom-2 right-0 w-1.5 cursor-ew-resize', edges: { right: true } },
+  { dir: 'w', className: 'top-2 bottom-2 left-0 w-1.5 cursor-ew-resize', edges: { left: true } },
+  { dir: 'ne', className: 'top-0 right-0 h-3 w-3 cursor-nesw-resize', edges: { top: true, right: true } },
+  { dir: 'nw', className: 'top-0 left-0 h-3 w-3 cursor-nwse-resize', edges: { top: true, left: true } },
+  { dir: 'se', className: 'bottom-0 right-0 h-3 w-3 cursor-nwse-resize', edges: { bottom: true, right: true } },
+  { dir: 'sw', className: 'bottom-0 left-0 h-3 w-3 cursor-nesw-resize', edges: { bottom: true, left: true } },
+]
+
+interface WindowProps {
+  win: WindowInstance
+  zIndex: number
+  active: boolean
+}
+
+export default function Window({ win, zIndex, active }: WindowProps) {
+  const focus = useWindowStore((s) => s.focus)
+  const close = useWindowStore((s) => s.close)
+  const minimize = useWindowStore((s) => s.minimize)
+  const toggleFullscreen = useWindowStore((s) => s.toggleFullscreen)
+  const setBounds = useWindowStore((s) => s.setBounds)
+
+  // While dragging/resizing we suppress the CSS transition so motion is 1:1.
+  const [interacting, setInteracting] = useState(false)
+  const lastPointer = useRef({ x: 0, y: 0 })
+
+  // ---- Dragging (from the titlebar) -------------------------------------
+  const onTitlePointerDown = (e: React.PointerEvent) => {
+    if (win.isFullscreen) return // can't drag a fullscreen window
+    e.preventDefault()
+    focus(win.id)
+    setInteracting(true)
+    const start = { x: win.x, y: win.y }
+    const px = e.clientX
+    const py = e.clientY
+    const target = e.currentTarget as HTMLElement
+    target.setPointerCapture(e.pointerId)
+
+    const onMove = (ev: PointerEvent) => {
+      lastPointer.current = { x: ev.clientX, y: ev.clientY }
+      setBounds(win.id, {
+        x: start.x + (ev.clientX - px),
+        y: start.y + (ev.clientY - py),
+      })
+    }
+    const onUp = (ev: PointerEvent) => {
+      target.releasePointerCapture(e.pointerId)
+      target.removeEventListener('pointermove', onMove)
+      target.removeEventListener('pointerup', onUp)
+      applySnap(ev.clientX, ev.clientY)
+      setInteracting(false)
+    }
+    target.addEventListener('pointermove', onMove)
+    target.addEventListener('pointerup', onUp)
+  }
+
+  /** Edge snapping (ROADMAP: snap to screen edges on drag). */
+  const applySnap = (clientX: number, clientY: number) => {
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const workH = vh - MENUBAR_H
+    if (clientY <= MENUBAR_H + SNAP_EDGE) {
+      // Top edge → maximize to the work area.
+      setBounds(win.id, { x: 0, y: MENUBAR_H, width: vw, height: workH })
+    } else if (clientX <= SNAP_EDGE) {
+      setBounds(win.id, { x: 0, y: MENUBAR_H, width: Math.round(vw / 2), height: workH })
+    } else if (clientX >= vw - SNAP_EDGE) {
+      const w = Math.round(vw / 2)
+      setBounds(win.id, { x: vw - w, y: MENUBAR_H, width: w, height: workH })
+    }
+  }
+
+  // ---- Resizing (from the 8 handles) ------------------------------------
+  const onResizePointerDown = (e: React.PointerEvent, edges: ResizeEdges) => {
+    e.preventDefault()
+    e.stopPropagation()
+    focus(win.id)
+    setInteracting(true)
+    const start = { x: win.x, y: win.y, width: win.width, height: win.height }
+    const px = e.clientX
+    const py = e.clientY
+    const target = e.currentTarget as HTMLElement
+    target.setPointerCapture(e.pointerId)
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - px
+      const dy = ev.clientY - py
+      let { x, y, width, height } = start
+      if (edges.right) width = Math.max(MIN_W, start.width + dx)
+      if (edges.bottom) height = Math.max(MIN_H, start.height + dy)
+      if (edges.left) {
+        const right = start.x + start.width
+        width = Math.max(MIN_W, start.width - dx)
+        x = right - width
+      }
+      if (edges.top) {
+        const bottom = start.y + start.height
+        height = Math.max(MIN_H, start.height - dy)
+        y = bottom - height
+        if (y < MENUBAR_H) {
+          y = MENUBAR_H
+          height = bottom - MENUBAR_H
+        }
+      }
+      setBounds(win.id, { x, y, width, height })
+    }
+    const onUp = () => {
+      target.releasePointerCapture(e.pointerId)
+      target.removeEventListener('pointermove', onMove)
+      target.removeEventListener('pointerup', onUp)
+      setInteracting(false)
+    }
+    target.addEventListener('pointermove', onMove)
+    target.addEventListener('pointerup', onUp)
+  }
+
+  // ---- Minimize-to-dock target (transform toward bottom-center) ----------
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1280
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 800
+  const minimizeTarget = {
+    opacity: 0,
+    scale: 0.12,
+    x: vw / 2 - (win.x + win.width / 2),
+    y: vh - win.y,
+  }
+
+  return (
+    <motion.div
+      role="dialog"
+      aria-label={win.title}
+      onPointerDownCapture={() => focus(win.id)}
+      initial={{ opacity: 0, scale: 0.95, y: 8 }}
+      animate={
+        win.isMinimized
+          ? minimizeTarget
+          : { opacity: 1, scale: 1, x: 0, y: 0 }
+      }
+      exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.12 } }}
+      transition={{
+        duration: win.isMinimized ? 0.3 : 0.2,
+        ease: win.isMinimized ? 'easeIn' : [0.25, 0.46, 0.45, 0.94],
+      }}
+      className="glass window-shadow absolute flex flex-col overflow-hidden rounded-xl"
+      style={{
+        left: win.x,
+        top: win.y,
+        width: win.width,
+        height: win.height,
+        zIndex,
+        transformOrigin: 'bottom center',
+        pointerEvents: win.isMinimized ? 'none' : 'auto',
+        transition: interacting
+          ? 'none'
+          : 'left 0.2s ease, top 0.2s ease, width 0.2s ease, height 0.2s ease',
+      }}
+    >
+      {/* Title bar */}
+      <div
+        onPointerDown={onTitlePointerDown}
+        onDoubleClick={() => toggleFullscreen(win.id)}
+        className="relative flex h-7 shrink-0 items-center bg-[var(--color-window-titlebar)] px-3"
+        style={{ touchAction: 'none' }}
+      >
+        <TrafficLights
+          active={active}
+          onClose={() => close(win.id)}
+          onMinimize={() => minimize(win.id)}
+          onFullscreen={() => toggleFullscreen(win.id)}
+        />
+        <span
+          className={`pointer-events-none absolute left-1/2 -translate-x-1/2 text-[13px] font-semibold ${
+            active
+              ? 'text-[var(--color-text-primary)]'
+              : 'text-[var(--color-text-secondary)]'
+          }`}
+        >
+          {win.title}
+        </span>
+      </div>
+
+      {/* App body */}
+      <div className="min-h-0 flex-1 overflow-auto bg-[var(--color-window-bg)] p-4">
+        <AppContent appId={win.appId} />
+      </div>
+
+      {/* Resize handles (hidden while fullscreen) */}
+      {!win.isFullscreen &&
+        HANDLES.map((h) => (
+          <div
+            key={h.dir}
+            onPointerDown={(e) => onResizePointerDown(e, h.edges)}
+            className={`absolute ${h.className}`}
+            style={{ touchAction: 'none', zIndex: Z.window }}
+          />
+        ))}
+    </motion.div>
+  )
+}

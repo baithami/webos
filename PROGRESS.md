@@ -7,10 +7,10 @@
 
 ## Current Status
 
-**Active Layer:** Layer 2 — Window Manager  
-**Overall Progress:** 1 of 6 layers complete  
-**Last Session:** 2026-06-05 — Layer 1 scaffolded and completed  
-**Next Action:** Build the Window component (drag, resize, traffic lights, focus/z-index, minimize-to-dock) and wire dock launch → open window
+**Active Layer:** Layer 3 — Virtual File System  
+**Overall Progress:** 2 of 6 layers complete  
+**Last Session:** 2026-06-05 — Layer 2 completed  
+**Next Action:** Define the in-memory FS tree, persist via Zustand persist to localStorage, implement CRUD (create/read/update/delete/rename/move) and file-type detection
 
 ---
 
@@ -19,7 +19,7 @@
 | Layer | Name | Status | Completed |
 |---|---|---|---|
 | 1 | Shell & Desktop | 🟢 Complete | 2026-06-05 |
-| 2 | Window Manager | 🔴 Not started | — |
+| 2 | Window Manager | 🟢 Complete | 2026-06-05 |
 | 3 | Virtual File System | 🔴 Not started | — |
 | 4 | Built-in Apps | 🔴 Not started | — |
 | 5 | System Features | 🔴 Not started | — |
@@ -43,13 +43,13 @@ Status key: 🔴 Not started · 🟡 In progress · 🟢 Complete
 
 ## Layer 2 — Window Manager
 
-- [ ] Window component with drag (mouse + touch)
-- [ ] Window resize (8-handle)
-- [ ] Traffic light buttons (close / minimize / fullscreen)
-- [ ] Z-index / focus management
-- [ ] Minimize-to-dock animation
-- [ ] Window stacking state in Zustand
-- [ ] `npm run build` passes clean
+- [x] Window component with drag (mouse + touch)
+- [x] Window resize (8-handle)
+- [x] Traffic light buttons (close / minimize / fullscreen)
+- [x] Z-index / focus management
+- [x] Minimize-to-dock animation
+- [x] Window stacking state in Zustand
+- [x] `npm run build` passes clean
 
 ## Layer 3 — Virtual File System
 
@@ -100,4 +100,5 @@ Status key: 🔴 Not started · 🟡 In progress · 🟢 Complete
 | Date | What was done | Next task |
 |---|---|---|
 | — | Project not started | Scaffold and Layer 1 |
-| 2026-06-05 | Scaffolded Next.js 14 (TS+Tailwind) manually; installed Framer Motion, Zustand, lucide-react; bumped Next to patched 14.2.35. Built full design system (globals.css tokens, glass, shadows, Z-scale, animation variants, accent list). Desktop canvas + wallpaper layer (4 gradient-fallback options). Menu bar (Apple logo, app menus, live clock, status icons). Dock with cursor-proximity magnification + launch bounce + running-indicator slots. Desktop right-click context menu (wallpaper submenu, theme toggle). Mobile degradation overlay (<768px). `npm run build` clean; prod server smoke-tested 200. | Layer 2 — Window Manager |
+| 2026-06-05 | Scaffolded Next.js 14 (TS+Tailwind) manually; installed Framer Motion, Zustand, lucide-react; bumped Next to patched 14.2.35. Built full design system (globals.css tokens, glass, shadows, Z-scale, animation variants, accent list). Desktop canvas + wallpaper layer (4 gradient-fallback options). Menu bar (Apple logo, app menus, live clock, status icons). Dock with cursor-proximity magnification + launch bounce + running-indicator slots. Desktop right-click context menu (wallpaper submenu, theme toggle). Mobile degradation overlay (<768px). `npm run build` clean; prod server smoke-tested 200. Committed (a08c945). | Layer 2 — Window Manager |
+| 2026-06-05 | Window store (Zustand, single-window-per-app, stacking `order` array, open/close/focus/minimize/restore/fullscreen/setBounds with min-size + menubar clamps). Window component: pointer-event drag from titlebar (mouse+touch), 8-handle resize, traffic lights (hover glyphs, dim when inactive), focus-on-pointerdown, double-click + green-light fullscreen with bounds restore, edge snapping (top→maximize, left/right→half). WindowLayer with AnimatePresence (open/close/minimize variants), z from stacking index. Minimize-to-dock genie transform toward bottom-center. App-content placeholder registry (Layer 4 fills it). Dock wired to openApp/restore/focus with live running indicators. `npm run build` clean; standalone server smoke-tested 200. | Layer 3 — Virtual File System |
