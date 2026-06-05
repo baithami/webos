@@ -3,6 +3,8 @@
 import { getApp } from '@/lib/apps'
 import Finder from './finder/Finder'
 import TextEdit from './TextEdit'
+import Notes from './Notes'
+import Terminal from './Terminal'
 
 /**
  * App body registry, keyed by appId. Apps register here as they are built in
@@ -11,6 +13,8 @@ import TextEdit from './TextEdit'
 const CONTENT: Record<string, React.ComponentType> = {
   finder: Finder,
   textedit: TextEdit,
+  notes: Notes,
+  terminal: Terminal,
 }
 
 export default function AppContent({ appId }: { appId: string }) {
