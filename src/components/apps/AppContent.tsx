@@ -7,6 +7,8 @@ import Notes from './Notes'
 import Terminal from './Terminal'
 import Calculator from './Calculator'
 import ClockApp from './ClockApp'
+import Settings from './Settings'
+import Safari from './Safari'
 
 /**
  * App body registry, keyed by appId. Apps register here as they are built in
@@ -19,6 +21,8 @@ const CONTENT: Record<string, React.ComponentType> = {
   terminal: Terminal,
   calculator: Calculator,
   clock: ClockApp,
+  settings: Settings,
+  safari: Safari,
 }
 
 export default function AppContent({ appId }: { appId: string }) {

@@ -158,6 +158,36 @@
 **Trade-off:** FS is per-browser, ~5MB cap, not shared across devices — already accepted in the seed decision.
 **Deferred:** Yes — revisit for cross-device sync (also a v2 ROADMAP item).
 
+## [2026-06-05] Decision: Apps own their layout; Window body is a bare flex child
+**Choice:** Removed the imposed `p-4 overflow-auto` from the Window body; each app fills `h-full w-full` and manages its own padding/scroll/chrome.
+**Reason:** Apps like Finder (sidebar + toolbar), Terminal (own scroll), and Calculator (edge-to-edge keypad) need full-bleed control; a one-size window padding fought every one of them.
+**Trade-off:** Each app must remember to pad itself; the placeholder absorbed the old padding.
+**Deferred:** No
+
+## [2026-06-05] Decision: Cross-app file opening via a tiny intent bus
+**Choice:** `useAppIntent` records a pending fileId per target appId and calls `openApp`; the target app consumes it in an effect. Finder/Terminal "open" route through it to TextEdit.
+**Reason:** With one window per app, there's no per-window argument channel. A minimal intent store is far simpler than threading params through the window store and keeps apps decoupled.
+**Trade-off:** Only one pending file per app at a time (fine for single-window v1).
+**Deferred:** No
+
+## [2026-06-05] Decision: Notes and Terminal are thin views over the FS store
+**Choice:** Notes stores each note as a .txt in a lazily-created "Notes" folder (title derived from first line, no file rename on edit). Terminal mutates the FS via the same store actions Finder uses.
+**Reason:** One source of truth — a note created in Notes is visible in Finder and `cat`-able in Terminal. Avoids a parallel data store and showcases the FS.
+**Trade-off:** Notes titles aren't independently editable from content; acceptable and macOS-Notes-like.
+**Deferred:** No
+
+## [2026-06-05] Decision: TextEdit rich mode uses contentEditable + execCommand
+**Choice:** Rich text (.rtf/.html) edits a contentEditable surface with `document.execCommand` for bold/italic/underline, storing HTML in the node content; plain mode is a textarea.
+**Reason:** Pragmatic, dependency-free rich editing sufficient for v1. `execCommand` is deprecated but universally supported and adequate for a simulation.
+**Trade-off:** No structured rich model; HTML stored verbatim. A real editor (Lexical/ProseMirror) would be a v2 upgrade.
+**Deferred:** Yes — revisit if rich editing needs to be robust.
+
+## [2026-06-05] Decision: Safari tracks its own visited stack
+**Choice:** Browser keeps an internal visited-URL stack for back/forward and resets the iframe `src`; it does not read cross-origin iframe history. Non-URL input falls back to a Google search. A start page shows shortcut tiles.
+**Reason:** Cross-origin frame history/navigation is unobservable from the parent, so an internal stack is the only reliable model. Sandbox attributes are set on the iframe.
+**Trade-off:** Back/forward reflect our navigations, not in-page link clicks inside the frame; many sites refuse framing (noted on the start page).
+**Deferred:** No
+
 ---
 
 *All future decisions appended below by Claude Code during build sessions.*
