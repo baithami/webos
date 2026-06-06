@@ -29,6 +29,9 @@ yarn-error.log*
 # user-uploaded media (runtime data, not source)
 /media
 
+# server-side app state (file system + settings), runtime data
+/data
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

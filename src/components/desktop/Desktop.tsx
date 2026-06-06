@@ -10,6 +10,7 @@ import DesktopContextMenu from './DesktopContextMenu'
 import MobileOverlay from './MobileOverlay'
 import WindowLayer from '@/components/window/WindowLayer'
 import SystemLayer from '@/components/system/SystemLayer'
+import StateSync from '@/components/system/StateSync'
 import DesktopIcons from './DesktopIcons'
 
 export interface ContextMenuState {
@@ -80,6 +81,7 @@ export default function Desktop() {
         />
       )}
 
+      <StateSync />
       <SystemLayer />
       <MobileOverlay />
     </main>

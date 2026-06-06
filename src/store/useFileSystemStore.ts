@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import {
   seedFileSystem,
   dedupeName,
@@ -26,6 +25,8 @@ function now(): number {
 
 interface FileSystemState {
   nodes: NodeMap
+  /** True once the tree has been loaded from the server (see StateSync). */
+  hydrated: boolean
 
   /** Create a file or folder under `parentId`. Returns the new id, or null. */
   createNode: (
@@ -51,12 +52,12 @@ interface FileSystemState {
   reset: () => void
 }
 
-export const useFileSystemStore = create<FileSystemState>()(
-  persist(
-    (set, get) => ({
-      nodes: seedFileSystem(),
+export const useFileSystemStore = create<FileSystemState>()((set, get) => ({
+  // Starts empty; StateSync loads the real tree from the server on boot.
+  nodes: {},
+  hydrated: false,
 
-      createNode: (parentId, name, type, content = '') => {
+  createNode: (parentId, name, type, content = '') => {
         const { nodes } = get()
         const parent = nodes[parentId]
         if (!parent || parent.type !== 'folder') return null
@@ -139,11 +140,5 @@ export const useFileSystemStore = create<FileSystemState>()(
         return true
       },
 
-      reset: () => set({ nodes: seedFileSystem() }),
-    }),
-    {
-      name: 'webos-filesystem',
-      version: 1,
-    }
-  )
-)
+  reset: () => set({ nodes: seedFileSystem() }),
+}))

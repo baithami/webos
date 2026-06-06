@@ -161,10 +161,13 @@ NEXT_PUBLIC_APP_NAME=WebOS
 NEXT_PUBLIC_APP_VERSION=1.0.0
 NEXT_PUBLIC_DEFAULT_PIN=0000
 
-# Optional: where uploaded photos are stored on disk.
-# Defaults to ./media (relative to the process working directory).
-# WEBOS_DATA_DIR is unused; the media library uses WEBOS_MEDIA_DIR.
+# Where uploaded photos are stored on disk (default ./media).
 WEBOS_MEDIA_DIR=/var/www/webos/media
+
+# Where the app state (virtual file system + user settings) is stored
+# (default ./data, holding state.json). This is what makes the FS + settings
+# sync across devices.
+WEBOS_DATA_DIR=/var/www/webos/data
 ```
 
 ## Media folder (uploaded photos)
@@ -183,6 +186,16 @@ the build:
 - The `/api/media` endpoints are unauthenticated (the PIN is client-side only),
   with a 15 MB/file cap and an image-only filter. If the tunnel hostname is
   public, consider a Cloudflare Access policy in front of it.
+
+## App state folder (file system + settings)
+
+The virtual file system and user settings (theme/accent/wallpaper) are stored
+server-side in `WEBOS_DATA_DIR/state.json` (default `./data`), which is what
+makes them sync across devices. Same rules as the media folder: it's runtime
+data (gitignored), must be on a writable path, and should live on a stable
+location so it survives redeploys. Back up `data/` and `media/` together. The
+`/api/state` endpoint is likewise unauthenticated — gate the public hostname
+with Cloudflare Access if needed.
 
 ---
 

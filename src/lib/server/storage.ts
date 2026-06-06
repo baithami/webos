@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
+import crypto from 'crypto'
 
 // Server-only media library. NEVER import this from a client component — it uses
 // the Node fs module. Uploaded images live as REAL FILES in a project folder
@@ -136,3 +137,27 @@ export function contentTypeFor(name: string): string {
 }
 
 export const MEDIA_DIR_PATH = MEDIA_DIR
+
+// ---- App state (file-system tree + user settings) ----------------------
+// Stored separately from media so the whole virtual FS + settings can sync
+// across devices. data/state.json holds { nodes, settings }.
+
+const DATA_DIR =
+  process.env.WEBOS_DATA_DIR || path.join(process.cwd(), 'data')
+const STATE_FILE = path.join(DATA_DIR, 'state.json')
+
+export async function readState(): Promise<unknown | null> {
+  try {
+    return JSON.parse(await fs.readFile(STATE_FILE, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+export async function writeState(state: unknown): Promise<void> {
+  await fs.mkdir(DATA_DIR, { recursive: true })
+  // Write-then-rename for an atomic update.
+  const tmp = `${STATE_FILE}.${crypto.randomUUID()}.tmp`
+  await fs.writeFile(tmp, JSON.stringify(state))
+  await fs.rename(tmp, STATE_FILE)
+}
