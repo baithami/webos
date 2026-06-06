@@ -8,6 +8,8 @@ import {
   Settings,
   Calculator,
   Clock,
+  Aperture,
+  MessageCircle,
 } from 'lucide-react'
 
 // Application registry. Full app windows arrive in Layer 4; for now this
@@ -35,6 +37,20 @@ export const APPS: AppDefinition[] = [
     name: 'Safari',
     icon: Compass,
     tile: 'from-cyan-300 to-blue-500',
+    pinned: true,
+  },
+  {
+    id: 'photos',
+    name: 'Photos',
+    icon: Aperture,
+    tile: 'from-rose-400 via-amber-300 to-sky-500',
+    pinned: true,
+  },
+  {
+    id: 'messages',
+    name: 'Messages',
+    icon: MessageCircle,
+    tile: 'from-green-400 to-green-600',
     pinned: true,
   },
   {

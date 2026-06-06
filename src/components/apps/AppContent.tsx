@@ -25,12 +25,14 @@ const dyn = (loader: Parameters<typeof dynamic>[0]) =>
 const CONTENT: Record<string, React.ComponentType> = {
   finder: dyn(() => import('./finder/Finder')),
   textedit: dyn(() => import('./TextEdit')),
-  notes: dyn(() => import('./Notes')),
+  notes: dyn(() => import('./notes/NotesApp')),
   terminal: dyn(() => import('./Terminal')),
   calculator: dyn(() => import('./Calculator')),
   clock: dyn(() => import('./ClockApp')),
   settings: dyn(() => import('./Settings')),
   safari: dyn(() => import('./Safari')),
+  photos: dyn(() => import('./Photos')),
+  messages: dyn(() => import('./Messages')),
 }
 
 export default function AppContent({ appId }: { appId: string }) {
