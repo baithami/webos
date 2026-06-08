@@ -19,12 +19,17 @@ async function bootAndLogin(page: Page) {
   })
 }
 
-/** Replace the SQL editor contents and run with Ctrl+Enter. */
-async function runSql(page: Page, terminal: Locator, sql: string) {
+/** Replace the SQL editor contents (without running). */
+async function typeSql(page: Page, terminal: Locator, sql: string) {
   const editor = terminal.locator('.cm-content')
   await editor.click()
   await page.keyboard.press('Control+a')
   await page.keyboard.type(sql)
+}
+
+/** Replace the SQL editor contents and run with Ctrl+Enter. */
+async function runSql(page: Page, terminal: Locator, sql: string) {
+  await typeSql(page, terminal, sql)
   await page.keyboard.press('Control+Enter')
 }
 
@@ -119,6 +124,37 @@ test('SQL Detective: solve Case 1 end-to-end and unlock Case 2', async ({
   // The Case 2 row is now clickable (not disabled).
   const case2Row = inbox2.getByRole('button', { name: /The Unauthorized Nap/ })
   await expect(case2Row).toBeEnabled()
+})
+
+test('SQL Detective: RUN button executes queries and surfaces errors', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await bootAndLogin(page)
+
+  await page.getByRole('button', { name: 'Inbox' }).click()
+  const inbox = page.getByRole('dialog', { name: 'Inbox' })
+  await inbox.getByRole('button', { name: 'OPEN TERMINAL' }).click()
+  const terminal = page.getByRole('dialog', { name: 'SQL Terminal' })
+  await expect(
+    terminal.getByText('Ready. Run a query with Ctrl+Enter.')
+  ).toBeVisible({ timeout: 20_000 })
+
+  const runBtn = terminal.getByRole('button', { name: /RUN/ })
+  await expect(runBtn).toBeEnabled()
+
+  // Valid query via the RUN button → results table.
+  await typeSql(page, terminal, 'SELECT * FROM employees WHERE floor = 4')
+  await runBtn.click()
+  await expect(terminal.getByRole('cell', { name: 'Dave Kowalski' })).toBeVisible()
+  await expect(terminal.getByText(/3 rows returned/)).toBeVisible()
+
+  // Invalid query via the RUN button → error message.
+  await typeSql(page, terminal, 'SELECT * FROM nonexistent_table')
+  await runBtn.click()
+  await expect(
+    terminal.getByText(/no table called 'nonexistent_table'/)
+  ).toBeVisible()
 })
 
 test('SQL Detective: wrong answer is rejected', async ({ page }) => {

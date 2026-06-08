@@ -187,8 +187,15 @@ export default function SqlTerminal() {
         <div className="flex min-h-0 flex-1 flex-col">
           {/* Editor */}
           <div className="flex min-h-0 flex-1 flex-col border-b border-[#2a4a2a]">
-            <div className="shrink-0 border-b border-[#1a2a1a] px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-[#4a7a4a]">
-              SQL QUERY — Ctrl+Enter to run
+            <div className="flex shrink-0 items-center justify-between border-b border-[#1a2a1a] px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-[#4a7a4a]">
+              <span>SQL QUERY — Ctrl+Enter to run</span>
+              <button
+                onClick={runQuery}
+                disabled={dbStatus !== 'ready'}
+                className="rounded border border-[#2a6a2a] px-2 py-0.5 text-[10px] font-bold tracking-widest text-[#b8ff6a] hover:bg-[#162016] disabled:cursor-not-allowed disabled:border-[#2a4a2a] disabled:text-[#2a5a2a]"
+              >
+                ▶ RUN
+              </button>
             </div>
             <div ref={editorRef} className="min-h-0 flex-1 overflow-hidden" />
           </div>
