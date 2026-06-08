@@ -29,10 +29,16 @@ async function runSql(page: Page, terminal: Locator, sql: string) {
 }
 
 test.beforeEach(async ({ page }) => {
-  // Start clean: wipe persisted game progress before the app boots.
+  // Start clean: wipe persisted game progress before the app boots — but ONLY on
+  // the first load. addInitScript runs on every navigation (including reload),
+  // and a mid-test reload must preserve the completion we just persisted. A
+  // sessionStorage sentinel (which survives reload) gates the one-time wipe.
   await page.addInitScript(() => {
     try {
-      window.localStorage.removeItem('sql-detective-game-state')
+      if (!window.sessionStorage.getItem('e2e-cleared')) {
+        window.localStorage.removeItem('sql-detective-game-state')
+        window.sessionStorage.setItem('e2e-cleared', '1')
+      }
     } catch {
       /* ignore */
     }
@@ -49,9 +55,11 @@ test('SQL Detective: solve Case 1 end-to-end and unlock Case 2', async ({
   await page.getByRole('button', { name: 'Inbox' }).click()
   const inbox = page.getByRole('dialog', { name: 'Inbox' })
   await expect(inbox).toBeVisible()
-  await expect(inbox.getByText('The Missing Muffin')).toBeVisible()
-  await expect(inbox.getByText('The Unauthorized Nap')).toBeVisible()
-  await expect(inbox.getByText('The Serial Jaywalker')).toBeVisible()
+  // Case titles appear in the sidebar rows (and, for the selected case, in the
+  // detail header too) — target the rows by their button role to stay unique.
+  await expect(inbox.getByRole('button', { name: /The Missing Muffin/ })).toBeVisible()
+  await expect(inbox.getByRole('button', { name: /The Unauthorized Nap/ })).toBeVisible()
+  await expect(inbox.getByRole('button', { name: /The Serial Jaywalker/ })).toBeVisible()
   // Two LOCKED badges (cases 2 & 3), one OPEN (case 1).
   await expect(inbox.getByText('LOCKED', { exact: true })).toHaveCount(2)
   await expect(inbox.getByText('OPEN', { exact: true })).toHaveCount(1)
@@ -78,10 +86,12 @@ test('SQL Detective: solve Case 1 end-to-end and unlock Case 2', async ({
   ).toBeVisible()
 
   // 5. Valid filter → results table with the three 4th-floor employees.
+  // Use the cell role so we match the results table, not any echo of the
+  // query text in the editor.
   await runSql(page, terminal, 'SELECT * FROM employees WHERE floor = 4')
-  await expect(terminal.getByText('Dave Kowalski')).toBeVisible()
-  await expect(terminal.getByText('Tom Birch')).toBeVisible()
-  await expect(terminal.getByText('Jim Foster')).toBeVisible()
+  await expect(terminal.getByRole('cell', { name: 'Dave Kowalski' })).toBeVisible()
+  await expect(terminal.getByRole('cell', { name: 'Tom Birch' })).toBeVisible()
+  await expect(terminal.getByRole('cell', { name: 'Jim Foster' })).toBeVisible()
   await expect(terminal.getByText(/3 rows returned/)).toBeVisible()
 
   // 6. Hint button reveals the first progressive hint.
@@ -90,7 +100,7 @@ test('SQL Detective: solve Case 1 end-to-end and unlock Case 2', async ({
 
   // 7. Run the answer query, then Submit → CASE CLOSED.
   await runSql(page, terminal, "SELECT * FROM employees WHERE name = 'Dave Kowalski'")
-  await expect(terminal.getByText('Dave Kowalski')).toBeVisible()
+  await expect(terminal.getByRole('cell', { name: 'Dave Kowalski' })).toBeVisible()
   const submit = terminal.getByRole('button', { name: /SUBMIT ANSWER/ })
   await expect(submit).toBeEnabled()
   await submit.click()
@@ -125,7 +135,7 @@ test('SQL Detective: wrong answer is rejected', async ({ page }) => {
 
   // An innocent employee is not the answer.
   await runSql(page, terminal, "SELECT * FROM employees WHERE name = 'Alice Chen'")
-  await expect(terminal.getByText('Alice Chen')).toBeVisible()
+  await expect(terminal.getByRole('cell', { name: 'Alice Chen' })).toBeVisible()
   await terminal.getByRole('button', { name: /SUBMIT ANSWER/ }).click()
   await expect(terminal.getByText(/not the answer/i)).toBeVisible()
 })
