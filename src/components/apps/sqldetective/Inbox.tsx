@@ -1,22 +1,37 @@
 'use client'
 
-import { useState } from 'react'
 import { useWindowStore } from '@/store/useWindowStore'
-import { CASES, CASE_001_BRIEFING, difficultyDots, type CaseSummary } from './data'
+import { useCaseStore } from '@/store/useCaseStore'
+import { CASES } from '@/lib/sqldetective/cases'
+import { difficultyDots } from './data'
+import type { GameCase } from '@/lib/sqldetective/types'
 
 // Case selection screen styled like a 1990s police-department dispatch
-// terminal. Left sidebar lists cases; right panel shows the selected briefing.
-// Only Case #0001 is OPEN for the placeholder phase — later cases unlock as the
-// game progresses.
+// terminal. Reads live game state from useCaseStore: lock state cascades from
+// completion, solved cases show a CLOSED badge, and selecting an unlocked case
+// sets it active and opens both the Case File and SQL Terminal.
 
 const PHOSPHOR = '#7fbf7f'
 const PHOSPHOR_BRIGHT = '#b8ff6a'
 
 export default function Inbox() {
   const openApp = useWindowStore((s) => s.openApp)
-  // Default to the first OPEN case (Case #0001).
-  const [selected, setSelected] = useState(CASES[0].number)
-  const active = CASES.find((c) => c.number === selected) ?? CASES[0]
+  const activeCaseId = useCaseStore((s) => s.activeCaseId)
+  const completedCases = useCaseStore((s) => s.completedCases)
+  const isLocked = useCaseStore((s) => s.isLocked)
+  const setActiveCase = useCaseStore((s) => s.setActiveCase)
+
+  const active = CASES.find((c) => c.id === activeCaseId) ?? CASES[0]
+
+  const openCase = (id: string) => {
+    if (isLocked(id)) return
+    setActiveCase(id)
+  }
+
+  const launch = (id: string, app: 'casefile' | 'sql-terminal') => {
+    setActiveCase(id)
+    openApp(app)
+  }
 
   return (
     <div
@@ -37,10 +52,12 @@ export default function Inbox() {
         <div className="flex-1 overflow-y-auto no-scrollbar">
           {CASES.map((c) => (
             <CaseRow
-              key={c.number}
+              key={c.id}
               caseItem={c}
-              selected={c.number === selected}
-              onSelect={() => c.status === 'OPEN' && setSelected(c.number)}
+              locked={isLocked(c.id)}
+              completed={completedCases.includes(c.id)}
+              selected={c.id === active.id}
+              onSelect={() => openCase(c.id)}
             />
           ))}
         </div>
@@ -48,8 +65,7 @@ export default function Inbox() {
           className="border-t px-4 py-2 text-[10px] uppercase tracking-widest opacity-40"
           style={{ borderColor: 'var(--color-window-border)' }}
         >
-          {CASES.filter((c) => c.status === 'OPEN').length} active ·{' '}
-          {CASES.filter((c) => c.status === 'LOCKED').length} locked
+          {completedCases.length} closed · {CASES.length} total
         </div>
       </aside>
 
@@ -61,7 +77,7 @@ export default function Inbox() {
         >
           <div>
             <div className="text-[15px]" style={{ color: PHOSPHOR_BRIGHT }}>
-              CASE #{active.number}
+              {caseNumber(active.id)} — {active.title}
             </div>
             <div className="mt-0.5 text-[11px] uppercase tracking-widest opacity-70">
               {active.classification}
@@ -81,18 +97,21 @@ export default function Inbox() {
           className="flex-1 overflow-y-auto whitespace-pre-wrap px-6 py-5 text-[13px] leading-relaxed no-scrollbar"
           style={{ color: 'rgba(230, 240, 220, 0.88)' }}
         >
-          {CASE_001_BRIEFING}
+          {active.briefing}
         </pre>
 
         <footer
           className="flex gap-3 border-t px-5 py-3"
           style={{ borderColor: 'var(--color-window-border)' }}
         >
-          <ActionButton label="OPEN CASE FILE" onClick={() => openApp('casefile')} />
+          <ActionButton
+            label="OPEN CASE FILE"
+            onClick={() => launch(active.id, 'casefile')}
+          />
           <ActionButton
             label="OPEN TERMINAL"
             primary
-            onClick={() => openApp('sql-terminal')}
+            onClick={() => launch(active.id, 'sql-terminal')}
           />
         </footer>
       </section>
@@ -100,16 +119,25 @@ export default function Inbox() {
   )
 }
 
+/** 'case-001' → '#0001' */
+function caseNumber(id: string): string {
+  const n = id.replace(/\D/g, '')
+  return `#${n.padStart(4, '0')}`
+}
+
 function CaseRow({
   caseItem,
+  locked,
+  completed,
   selected,
   onSelect,
 }: {
-  caseItem: CaseSummary
+  caseItem: GameCase
+  locked: boolean
+  completed: boolean
   selected: boolean
   onSelect: () => void
 }) {
-  const locked = caseItem.status === 'LOCKED'
   return (
     <button
       type="button"
@@ -131,9 +159,9 @@ function CaseRow({
             color: selected ? PHOSPHOR_BRIGHT : PHOSPHOR,
           }}
         >
-          #{caseItem.number}
+          {caseNumber(caseItem.id)}
         </span>
-        <StatusBadge status={caseItem.status} />
+        <StatusBadge locked={locked} completed={completed} />
       </div>
       <div
         className="mt-1.5 text-[13px]"
@@ -148,17 +176,19 @@ function CaseRow({
   )
 }
 
-function StatusBadge({ status }: { status: CaseSummary['status'] }) {
-  const open = status === 'OPEN'
+function StatusBadge({ locked, completed }: { locked: boolean; completed: boolean }) {
+  const label = completed ? 'CLOSED' : locked ? 'LOCKED' : 'OPEN'
+  const colors = completed
+    ? { bg: 'rgba(107, 255, 184, 0.16)', fg: '#6bffb8' }
+    : locked
+      ? { bg: 'rgba(255,255,255,0.06)', fg: 'rgba(255,255,255,0.4)' }
+      : { bg: 'rgba(40, 200, 64, 0.18)', fg: '#5fe070' }
   return (
     <span
       className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest"
-      style={{
-        background: open ? 'rgba(40, 200, 64, 0.18)' : 'rgba(255,255,255,0.06)',
-        color: open ? '#5fe070' : 'rgba(255,255,255,0.4)',
-      }}
+      style={{ background: colors.bg, color: colors.fg }}
     >
-      {status}
+      {label}
     </span>
   )
 }

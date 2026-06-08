@@ -1,241 +1,348 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
-import { defaultKeymap } from '@codemirror/commands'
+import { defaultKeymap, historyKeymap, history } from '@codemirror/commands'
 import { sql } from '@codemirror/lang-sql'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { Database } from 'lucide-react'
-import { CASE_001_SCHEMA } from './data'
+import { useCaseStore } from '@/store/useCaseStore'
+import { createCaseDb, executeQuery } from '@/lib/sqldetective/queryEngine'
+import type { QueryOutcome } from '@/lib/sqldetective/types'
 
-// The core gameplay interface: a SQL IDE with a "CrimeOS Database Terminal"
-// aesthetic. SQL execution / hints / submission are stubs for this phase —
-// Ctrl+Enter surfaces a "not yet implemented" message and the status flips to
-// ERROR so the wiring is visible without a real engine behind it.
+// The core gameplay interface. On mount (and whenever the active case changes)
+// it builds that case's in-memory SQLite DB from dbSetupSQL, then runs the
+// player's queries via executeQuery(). Submit validates the current result rows
+// against the case solution. Hints reveal progressively. The CodeMirror editor
+// is created once; Ctrl/Cmd+Enter calls the latest runQuery through a ref so the
+// keymap closure never goes stale — no global document listener (which would
+// leak into the rest of the OS).
 
-const PHOSPHOR = '#7fbf7f'
-const PHOSPHOR_BRIGHT = '#b8ff6a'
-const PHOSPHOR_ERR = '#ff6b6b'
-const EDITOR_BG = '#0d1117'
-const RESULTS_BG = '#0a0f0a'
-
-const INITIAL_DOC = '-- Query the evidence database\nSELECT * FROM employees;'
-
-const READY_MESSAGE = `> Ready. Run a query with Ctrl+Enter.
->
-> Connected to: case_001.db
-> Tables: employees, break_room_log, muffin_inventory`
-
-type Status = 'IDLE' | 'RUNNING' | 'ERROR'
+type SqlDatabase = Awaited<ReturnType<typeof createCaseDb>>
+type DbStatus = 'loading' | 'ready' | 'error'
 
 export default function SqlTerminal() {
+  const activeCase = useCaseStore((s) => s.activeCase())
+  const completeCase = useCaseStore((s) => s.completeCase)
+  const nextHint = useCaseStore((s) => s.nextHint)
+  // Aliased off the `use*` name so eslint's rules-of-hooks doesn't mistake this
+  // store action for a React Hook when called inside handleHint.
+  const revealHint = useCaseStore((s) => s.useHint)
+
+  const [dbStatus, setDbStatus] = useState<DbStatus>('loading')
+  const [dbError, setDbError] = useState<string | null>(null)
+  const dbRef = useRef<SqlDatabase | null>(null)
+
+  const [outcome, setOutcome] = useState<QueryOutcome | null>(null)
+  const [schemaOpen, setSchemaOpen] = useState(false)
+  const [currentHint, setCurrentHint] = useState<string | null>(null)
+  const [submitResult, setSubmitResult] = useState<'correct' | 'wrong' | null>(null)
+
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
-  const [showSchema, setShowSchema] = useState(false)
-  const [status, setStatus] = useState<Status>('IDLE')
-  // null → show the default ready message; otherwise the stub run output.
-  const [ranOnce, setRanOnce] = useState(false)
 
-  // Run stub. Keyed off a ref-less state setter so the CodeMirror keymap below
-  // can call the latest version via a ref.
-  const runQuery = useRef<() => void>(() => {})
-  runQuery.current = () => {
-    setStatus('ERROR')
-    setRanOnce(true)
-  }
+  const caseId = activeCase?.id
 
+  // (Re)build the database whenever the active case changes.
+  useEffect(() => {
+    if (!activeCase) return
+    let cancelled = false
+    setDbStatus('loading')
+    setDbError(null)
+    setOutcome(null)
+    setSubmitResult(null)
+    setCurrentHint(null)
+    dbRef.current?.close()
+    dbRef.current = null
+
+    createCaseDb(activeCase.dbSetupSQL)
+      .then((db) => {
+        if (cancelled) {
+          db.close()
+          return
+        }
+        dbRef.current = db
+        setDbStatus('ready')
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setDbError(err instanceof Error ? err.message : String(err))
+        setDbStatus('error')
+      })
+
+    return () => {
+      cancelled = true
+      dbRef.current?.close()
+      dbRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseId])
+
+  const getSql = useCallback((): string => {
+    return viewRef.current?.state.doc.toString() ?? ''
+  }, [])
+
+  const runQuery = useCallback(() => {
+    if (!dbRef.current || !activeCase || dbStatus !== 'ready') return
+    const result = executeQuery(getSql(), dbRef.current, activeCase.schema)
+    setOutcome(result)
+    setSubmitResult(null)
+  }, [activeCase, dbStatus, getSql])
+
+  // Keep a ref to the latest runQuery so the (create-once) CodeMirror keymap
+  // always calls the current version without re-instantiating the editor.
+  const runQueryRef = useRef(runQuery)
+  runQueryRef.current = runQuery
+
+  // Initialize CodeMirror once.
   useEffect(() => {
     if (!editorRef.current || viewRef.current) return
+
+    const firstTable = activeCase
+      ? Object.keys(activeCase.schema.tables)[0]
+      : 'employees'
+
     const state = EditorState.create({
-      doc: INITIAL_DOC,
+      doc: `-- Query the evidence database\nSELECT * FROM ${firstTable};`,
       extensions: [
         lineNumbers(),
+        history(),
         sql(),
         oneDark,
         keymap.of([
           {
             key: 'Mod-Enter',
             run: () => {
-              runQuery.current()
+              runQueryRef.current()
               return true
             },
           },
           ...defaultKeymap,
+          ...historyKeymap,
         ]),
         EditorView.theme({
-          '&': { height: '100%', fontSize: '13px', background: EDITOR_BG },
-          '.cm-scroller': { fontFamily: 'monospace', overflow: 'auto' },
-          '.cm-gutters': { background: EDITOR_BG },
+          '&': { height: '100%', fontSize: '13px', backgroundColor: '#0d1117' },
+          '.cm-scroller': { fontFamily: "'Courier New', monospace", overflow: 'auto' },
+          '.cm-content': { padding: '8px 0' },
+          '.cm-gutters': { backgroundColor: '#0d1117', borderRight: '1px solid #2a4a2a' },
+          '.cm-lineNumbers .cm-gutterElement': { color: '#4a7a4a' },
         }),
       ],
     })
+
     viewRef.current = new EditorView({ state, parent: editorRef.current })
     return () => {
       viewRef.current?.destroy()
       viewRef.current = null
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const handleSubmit = () => {
+    if (!activeCase || outcome?.type !== 'success') return
+    const correct = activeCase.solution.validate(outcome.result.rows)
+    if (correct) {
+      completeCase(activeCase.id)
+      setSubmitResult('correct')
+    } else {
+      setSubmitResult('wrong')
+    }
+  }
+
+  const handleHint = () => {
+    if (!activeCase) return
+    const hint = nextHint(activeCase.id)
+    if (hint) {
+      revealHint(activeCase.id)
+      setCurrentHint(hint)
+    }
+  }
+
+  if (!activeCase) {
+    return (
+      <div className="flex h-full items-center justify-center bg-[#0a0f0a] font-mono text-[#4a7a4a]">
+        No active case. Open the Inbox to select a case.
+      </div>
+    )
+  }
+
   return (
-    <div
-      className="flex h-full w-full flex-col font-mono"
-      style={{ background: RESULTS_BG, color: PHOSPHOR }}
-    >
-      {/* Header bar */}
-      <header
-        className="flex h-8 shrink-0 items-center justify-between border-b px-3 text-[11px]"
-        style={{ borderColor: 'rgba(127,191,127,0.2)', background: '#070b07' }}
-      >
-        <span className="flex items-center gap-1.5" style={{ color: PHOSPHOR_BRIGHT }}>
-          <Database size={12} />
-          CRIMEDB v1.0 — CASE #0001
+    <div className="flex h-full flex-col bg-[#0a0f0a] text-[#7fbf7f]">
+      {/* Header */}
+      <div className="flex shrink-0 items-center justify-between border-b border-[#2a4a2a] bg-[#0d1117] px-3 py-1.5 font-mono text-xs">
+        <span className="text-[#b8ff6a]">
+          CRIMEDB v1.0 — {activeCase.title.toUpperCase()}
         </span>
         <button
-          type="button"
-          onClick={() => setShowSchema((s) => !s)}
-          className="rounded px-2 py-0.5 text-[10px] font-bold tracking-widest transition-colors hover:bg-white/5"
-          style={{
-            border: '1px solid rgba(127,191,127,0.3)',
-            color: showSchema ? PHOSPHOR_BRIGHT : PHOSPHOR,
-          }}
+          onClick={() => setSchemaOpen((v) => !v)}
+          className="rounded border border-[#2a4a2a] px-2 py-0.5 text-[#4a7a4a] hover:border-[#7fbf7f] hover:text-[#7fbf7f]"
         >
-          [SCHEMA]
+          [SCHEMA {schemaOpen ? '▲' : '▼'}]
         </button>
-      </header>
+      </div>
 
-      {/* Editor + Results + optional Schema panel */}
+      {/* Main area */}
       <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* Editor pane */}
-          <div className="flex min-h-0 flex-1 flex-col">
-            <PaneLabel>SQL QUERY</PaneLabel>
-            <div className="min-h-0 flex-1" style={{ background: EDITOR_BG }}>
-              <div ref={editorRef} className="h-full w-full" />
+        {/* Editor + Results */}
+        <div className="flex min-h-0 flex-1 flex-col">
+          {/* Editor */}
+          <div className="flex min-h-0 flex-1 flex-col border-b border-[#2a4a2a]">
+            <div className="shrink-0 border-b border-[#1a2a1a] px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-[#4a7a4a]">
+              SQL QUERY — Ctrl+Enter to run
             </div>
+            <div ref={editorRef} className="min-h-0 flex-1 overflow-hidden" />
           </div>
-          {/* Results pane */}
-          <div
-            className="flex min-h-0 flex-1 flex-col border-t"
-            style={{ borderColor: 'rgba(127,191,127,0.2)' }}
-          >
-            <PaneLabel>RESULTS</PaneLabel>
-            <pre
-              className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap px-3 py-2 text-[12px] leading-relaxed no-scrollbar"
-              style={{ background: RESULTS_BG }}
-            >
-              {ranOnce ? (
-                <span style={{ color: '#ffb454' }}>
-                  {'> SQL execution not yet implemented.'}
-                </span>
-              ) : (
-                <span style={{ color: 'rgba(127,191,127,0.65)' }}>
-                  {READY_MESSAGE}
+
+          {/* Results */}
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="shrink-0 border-b border-[#1a2a1a] px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-[#4a7a4a]">
+              RESULTS
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto p-3 font-mono text-[13px]">
+              {dbStatus === 'loading' && (
+                <span className="text-[#4a7a4a]">
+                  {'>'} Initializing database engine...
                 </span>
               )}
-            </pre>
+              {dbStatus === 'error' && (
+                <span className="text-[#ff6b6b]">
+                  {'>'} Failed to initialize: {dbError}
+                </span>
+              )}
+              {dbStatus === 'ready' && !outcome && (
+                <div className="space-y-1 text-[#4a7a4a]">
+                  <div>{'>'} Ready. Run a query with Ctrl+Enter.</div>
+                  <div>{'>'}</div>
+                  <div>{'>'} Connected to: {activeCase.id}.db</div>
+                  <div>
+                    {'>'} Tables: {Object.keys(activeCase.schema.tables).join(', ')}
+                  </div>
+                </div>
+              )}
+              {outcome?.type === 'empty' && (
+                <span className="text-[#ffcc6b]">{'>'} {outcome.message}</span>
+              )}
+              {outcome?.type === 'error' && (
+                <div className="space-y-2">
+                  <div className="text-[#ff6b6b]">⚠ {outcome.message}</div>
+                  {outcome.rawError && (
+                    <details className="text-[#4a7a4a]">
+                      <summary className="cursor-pointer text-[11px] hover:text-[#7fbf7f]">
+                        ▸ Show raw error
+                      </summary>
+                      <pre className="mt-1 text-[11px]">{outcome.rawError}</pre>
+                    </details>
+                  )}
+                </div>
+              )}
+              {outcome?.type === 'success' && (
+                <div className="overflow-auto">
+                  <table className="w-full border-collapse text-[12px]">
+                    <thead>
+                      <tr className="bg-[#162016]">
+                        {outcome.result.columns.map((col) => (
+                          <th
+                            key={col}
+                            className="border border-[#2a4a2a] px-3 py-1 text-left font-mono text-[#b8ff6a]"
+                          >
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {outcome.result.rows.slice(0, 100).map((row, i) => (
+                        <tr
+                          key={i}
+                          className={i % 2 === 0 ? 'bg-transparent' : 'bg-[#0d150d]'}
+                        >
+                          {outcome.result.columns.map((col) => (
+                            <td
+                              key={col}
+                              className="border border-[#1a2a1a] px-3 py-1 text-[#7fbf7f]"
+                            >
+                              {String(row[col] ?? 'NULL')}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="mt-2 text-[11px] text-[#4a7a4a]">
+                    {outcome.result.rowCount} row
+                    {outcome.result.rowCount !== 1 ? 's' : ''} returned
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {showSchema && <SchemaPanel />}
+        {/* Schema panel */}
+        {schemaOpen && (
+          <div className="w-52 shrink-0 overflow-auto border-l border-[#2a4a2a] bg-[#0d1117] p-3 font-mono text-[11px]">
+            <div className="mb-2 text-[10px] uppercase tracking-widest text-[#b8ff6a]">
+              Schema
+            </div>
+            {Object.entries(activeCase.schema.tables).map(([table, def]) => (
+              <div key={table} className="mb-3">
+                <div className="mb-1 text-[#7fbf7f]">{table}</div>
+                {def.columns.map((col) => (
+                  <div key={col} className="pl-2 text-[#4a7a4a]">
+                    {col}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Footer action bar */}
-      <footer
-        className="flex h-10 shrink-0 items-center justify-between border-t px-3"
-        style={{ borderColor: 'rgba(127,191,127,0.2)', background: '#070b07' }}
-      >
+      {/* Hint callout */}
+      {currentHint && (
+        <div className="shrink-0 border-t border-[#2a4a2a] bg-[#0d150d] px-4 py-2 font-mono text-[12px] text-[#ffcc6b]">
+          <span className="text-[#b8ff6a]">HINT: </span>
+          {currentHint}
+          <button
+            onClick={() => setCurrentHint(null)}
+            className="ml-3 text-[#4a7a4a] hover:text-[#7fbf7f]"
+          >
+            [dismiss]
+          </button>
+        </div>
+      )}
+
+      {/* Submit result message */}
+      {submitResult === 'wrong' && (
+        <div className="shrink-0 border-t border-[#2a4a2a] bg-[#1a0a0a] px-4 py-2 font-mono text-[12px] text-[#ff6b6b]">
+          That&apos;s not the answer. The suspect is still out there.
+        </div>
+      )}
+      {submitResult === 'correct' && (
+        <div className="shrink-0 border-t border-[#2a6a2a] bg-[#0a1a0a] px-4 py-2 font-mono text-[12px] text-[#6bffb8]">
+          ✓ CASE CLOSED. That&apos;s the one. +100 XP
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="flex shrink-0 items-center justify-between border-t border-[#2a4a2a] bg-[#0d1117] px-3 py-1.5">
         <button
-          type="button"
-          onClick={() => alert('Hints coming soon')}
-          className="rounded px-2.5 py-1 text-[11px] font-bold tracking-widest transition-colors hover:bg-white/5"
-          style={{ color: 'var(--color-text-secondary)', border: '1px solid var(--color-window-border)' }}
+          onClick={handleHint}
+          className="rounded border border-[#2a4a2a] px-3 py-1 font-mono text-[11px] text-[#4a7a4a] hover:border-[#7fbf7f] hover:text-[#7fbf7f]"
         >
           [?] HINT
         </button>
-
-        <StatusIndicator status={status} />
-
+        <span className="font-mono text-[10px] uppercase tracking-widest text-[#2a5a2a]">
+          {dbStatus === 'loading' ? 'LOADING' : dbStatus === 'error' ? 'ERROR' : 'READY'}
+        </span>
         <button
-          type="button"
-          onClick={() => alert('Submission coming soon')}
-          className="rounded px-2.5 py-1 text-[11px] font-bold tracking-widest transition-colors"
-          style={{
-            color: PHOSPHOR_BRIGHT,
-            border: `1px solid ${PHOSPHOR_BRIGHT}`,
-            background: 'rgba(184,255,106,0.12)',
-          }}
+          onClick={handleSubmit}
+          disabled={outcome?.type !== 'success'}
+          className="rounded border border-[#b8ff6a] px-3 py-1 font-mono text-[11px] text-[#b8ff6a] hover:bg-[#162016] disabled:cursor-not-allowed disabled:border-[#2a4a2a] disabled:text-[#2a5a2a]"
         >
           [✓] SUBMIT ANSWER
         </button>
-      </footer>
-    </div>
-  )
-}
-
-function PaneLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="shrink-0 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em]"
-      style={{ color: PHOSPHOR, background: '#070b07' }}
-    >
-      {children}
-    </div>
-  )
-}
-
-function StatusIndicator({ status }: { status: Status }) {
-  const color =
-    status === 'ERROR'
-      ? PHOSPHOR_ERR
-      : status === 'RUNNING'
-        ? '#ffb454'
-        : PHOSPHOR
-  return (
-    <span
-      className="text-[11px] font-bold tracking-[0.3em]"
-      style={{ color }}
-    >
-      {status}
-    </span>
-  )
-}
-
-function SchemaPanel() {
-  return (
-    <aside
-      className="w-[220px] shrink-0 overflow-y-auto border-l px-3 py-2 no-scrollbar"
-      style={{ borderColor: 'rgba(127,191,127,0.2)', background: '#070b07' }}
-    >
-      <div
-        className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
-        style={{ color: PHOSPHOR_BRIGHT }}
-      >
-        Schema
       </div>
-      {CASE_001_SCHEMA.map((table) => (
-        <div key={table.name} className="mb-3">
-          <div className="text-[12px] font-bold" style={{ color: PHOSPHOR_BRIGHT }}>
-            {table.name}
-          </div>
-          <ul className="mt-1 space-y-0.5">
-            {table.columns.map((col) => (
-              <li
-                key={col.name}
-                className="flex items-baseline justify-between text-[11px]"
-              >
-                <span style={{ color: PHOSPHOR }}>{col.name}</span>
-                <span
-                  className="text-[9px] uppercase"
-                  style={{ color: 'rgba(127,191,127,0.4)' }}
-                >
-                  {col.type}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </aside>
+    </div>
   )
 }

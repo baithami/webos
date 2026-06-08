@@ -1,20 +1,40 @@
 'use client'
 
 import { useState } from 'react'
-import { CASE_001_BRIEFING, CASE_001_SCHEMA } from './data'
+import { useCaseStore } from '@/store/useCaseStore'
 
-// Evidence document viewer. Two tabs: BRIEFING renders a scanned physical
-// document (light paper, ruled lines, red case stamp — the one place in the OS
-// that intentionally inverts to a light scheme); SCHEMA lists the evidence
-// database tables in the dark OS theme.
+// Evidence document viewer. Reads the live active case from useCaseStore.
+// BRIEFING renders a scanned physical document (light paper, ruled lines, red
+// case stamp — the one place in the OS that intentionally inverts to a light
+// scheme); SCHEMA lists the case's evidence tables in the dark OS theme.
 
 const PHOSPHOR = '#7fbf7f'
 const PHOSPHOR_BRIGHT = '#b8ff6a'
 
 type Tab = 'BRIEFING' | 'SCHEMA'
 
+/** 'case-001' → '#0001' */
+function caseNumber(id: string): string {
+  const n = id.replace(/\D/g, '')
+  return `#${n.padStart(4, '0')}`
+}
+
 export default function CaseFile() {
   const [tab, setTab] = useState<Tab>('BRIEFING')
+  const activeCase = useCaseStore((s) => s.activeCase())
+
+  if (!activeCase) {
+    return (
+      <div
+        className="flex h-full w-full items-center justify-center font-mono text-[13px]"
+        style={{ background: 'var(--color-window-bg)', color: PHOSPHOR }}
+      >
+        No active case. Open the Inbox to select a case.
+      </div>
+    )
+  }
+
+  const stamp = caseNumber(activeCase.id)
 
   return (
     <div
@@ -34,8 +54,7 @@ export default function CaseFile() {
             className="rounded px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-widest transition-colors"
             style={{
               background: tab === t ? 'rgba(127,191,127,0.15)' : 'transparent',
-              color:
-                tab === t ? PHOSPHOR_BRIGHT : 'var(--color-text-secondary)',
+              color: tab === t ? PHOSPHOR_BRIGHT : 'var(--color-text-secondary)',
             }}
           >
             {t}
@@ -44,13 +63,20 @@ export default function CaseFile() {
       </div>
 
       <div className="min-h-0 flex-1">
-        {tab === 'BRIEFING' ? <BriefingDoc /> : <SchemaView />}
+        {tab === 'BRIEFING' ? (
+          <BriefingDoc briefing={activeCase.briefing} stamp={stamp} />
+        ) : (
+          <SchemaView
+            stamp={stamp}
+            tables={activeCase.schema.tables}
+          />
+        )}
       </div>
     </div>
   )
 }
 
-function BriefingDoc() {
+function BriefingDoc({ briefing, stamp }: { briefing: string; stamp: string }) {
   return (
     <div
       className="relative h-full overflow-y-auto px-10 py-10 no-scrollbar"
@@ -70,20 +96,26 @@ function BriefingDoc() {
           transform: 'rotate(-5deg)',
         }}
       >
-        CASE #0001
+        CASE {stamp}
       </div>
 
       <pre
         className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed"
         style={{ color: '#1c1917' }}
       >
-        {CASE_001_BRIEFING}
+        {briefing}
       </pre>
     </div>
   )
 }
 
-function SchemaView() {
+function SchemaView({
+  stamp,
+  tables,
+}: {
+  stamp: string
+  tables: Record<string, { columns: string[] }>
+}) {
   return (
     <div
       className="h-full overflow-y-auto px-5 py-5 font-mono no-scrollbar"
@@ -93,12 +125,12 @@ function SchemaView() {
         className="mb-4 text-[12px] font-bold uppercase tracking-[0.2em]"
         style={{ color: PHOSPHOR_BRIGHT }}
       >
-        Evidence Database — Case #0001
+        Evidence Database — Case {stamp}
       </h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {CASE_001_SCHEMA.map((table) => (
+        {Object.entries(tables).map(([name, def]) => (
           <div
-            key={table.name}
+            key={name}
             className="rounded-lg border p-3"
             style={{
               borderColor: 'var(--color-window-border)',
@@ -109,23 +141,26 @@ function SchemaView() {
               className="mb-2 text-[13px] font-bold"
               style={{ color: PHOSPHOR_BRIGHT }}
             >
-              {table.name}
+              {name}
             </div>
             <ul className="space-y-1">
-              {table.columns.map((col) => (
-                <li
-                  key={col.name}
-                  className="flex items-baseline justify-between text-[12px]"
-                >
-                  <span style={{ color: PHOSPHOR }}>{col.name}</span>
-                  <span
-                    className="text-[10px] uppercase tracking-wider"
-                    style={{ color: 'var(--color-text-tertiary)' }}
+              {def.columns.map((col) => {
+                const [colName, ...rest] = col.split(' ')
+                return (
+                  <li
+                    key={col}
+                    className="flex items-baseline justify-between text-[12px]"
                   >
-                    {col.type}
-                  </span>
-                </li>
-              ))}
+                    <span style={{ color: PHOSPHOR }}>{colName}</span>
+                    <span
+                      className="text-[10px] uppercase tracking-wider"
+                      style={{ color: 'var(--color-text-tertiary)' }}
+                    >
+                      {rest.join(' ')}
+                    </span>
+                  </li>
+                )
+              })}
             </ul>
           </div>
         ))}
