@@ -33,6 +33,10 @@ const CONTENT: Record<string, React.ComponentType> = {
   safari: dyn(() => import('./Safari')),
   photos: dyn(() => import('./Photos')),
   messages: dyn(() => import('./Messages')),
+  inbox: dyn(() => import('./sqldetective/Inbox')),
+  casefile: dyn(() => import('./sqldetective/CaseFile')),
+  'sql-terminal': dyn(() => import('./sqldetective/SqlTerminal')),
+  'detective-notes': dyn(() => import('./sqldetective/DetectiveNotes')),
 }
 
 export default function AppContent({ appId }: { appId: string }) {
