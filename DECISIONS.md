@@ -289,3 +289,9 @@
 **Observation:** `useCaseStore`'s action is named `useHint` (per the v3 spec's store API). Calling it inside the non-component helper `handleHint` tripped `react-hooks/rules-of-hooks`, which treats any `use*` identifier as a Hook.
 **Action:** Kept the store API name `useHint` but bound it to a locally-renamed const `revealHint` in SqlTerminal so the lint rule no longer misfires. No behavior change.
 **Deferred:** No.
+
+## [2026-06-08] Resolved: SQL Detective verified in-browser via Playwright
+**Choice:** Added Playwright (`@playwright/test`) with `playwright.config.ts` (reuses the running :3000 dev server) and `e2e/sqldetective.spec.ts` — an end-to-end click-through of the real OS: boot → PIN 0000 → dock → Inbox (asserts 3 cases, 2 locked) → SQL Terminal → friendly-error paths (`SELCT`, `employes`) → `WHERE floor = 4` results → reveal a hint → submit Dave Kowalski → CASE CLOSED → reload + re-login → Case 1 CLOSED and Case 2 unlocked; plus a wrong-answer rejection test. `npm run test:e2e` runs it. Both tests pass against real Chromium.
+**Reason:** Resolves the in-browser confirmation that the two Phase-1/Phase-2 verification notes left deferred ("no Chromium on this host"). The OS libs were installed manually (the host needed `playwright install-deps`, which requires root). This now exercises the React/CodeMirror rendering, the real in-browser WASM load, and localStorage persistence across an actual refresh — none of which the headless Node checks covered.
+**Notes:** Selectors target the dock `aria-label`, windows by `role="dialog"` name, Inbox case rows by button role, and SQL results by `cell` role (names also echo in the editor, so text-only matches are ambiguous). The one-time game-state wipe is gated by a sessionStorage sentinel so a mid-test reload keeps the persisted completion. Supersedes the "Phase-1/Phase-2 verification was compile-time/headless only" notes above for the parts now covered.
+**Deferred:** No.
