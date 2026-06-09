@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useSystemStore } from '@/store/useSystemStore'
+import { useUIStore } from '@/store/useUIStore'
 import { ACCENT_COLORS } from '@/lib/constants'
 import Wallpaper from './Wallpaper'
-import MenuBar from './MenuBar'
-import Dock from './Dock'
+import Taskbar from './Taskbar'
 import DesktopContextMenu from './DesktopContextMenu'
 import MobileOverlay from './MobileOverlay'
 import WindowLayer from '@/components/window/WindowLayer'
@@ -28,6 +28,7 @@ export default function Desktop() {
   const theme = useSystemStore((s) => s.theme)
   const accent = useSystemStore((s) => s.accent)
   const accentHover = useAccentHover(accent)
+  const closeAllPopovers = useUIStore((s) => s.closeAllPopovers)
 
   const [mounted, setMounted] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
@@ -55,6 +56,13 @@ export default function Desktop() {
 
   const closeContextMenu = () => setContextMenu(null)
 
+  // Clicking the desktop dismisses the context menu and any open popover
+  // (Start Menu, Spotlight, Control Center, Notifications).
+  const handleDesktopClick = () => {
+    closeContextMenu()
+    closeAllPopovers()
+  }
+
   // Avoid rendering persisted-state-dependent UI until mounted to prevent
   // hydration mismatch between server defaults and client localStorage.
   if (!mounted) {
@@ -65,13 +73,12 @@ export default function Desktop() {
     <main
       className="relative h-full w-full overflow-hidden bg-[var(--color-desktop-bg)]"
       onContextMenu={handleContextMenu}
-      onClick={closeContextMenu}
+      onClick={handleDesktopClick}
     >
       <Wallpaper />
       <DesktopIcons />
       <WindowLayer />
-      <MenuBar />
-      <Dock />
+      <Taskbar />
 
       {contextMenu && (
         <DesktopContextMenu

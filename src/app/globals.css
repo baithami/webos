@@ -3,59 +3,62 @@
 @tailwind utilities;
 
 /* ============================================================
-   WebOS Design Tokens — see STYLE_GUIDE.md
-   All theme values live here as CSS custom properties so that
-   dark/light/accent switching happens at runtime without class
-   churn on every element.
+   CrimeOS Design Tokens — Windows 95 skin (single theme)
+   All chrome is solid system gray with the classic raised/sunken
+   3D bevels. No blur, no frosted glass, no light/dark switching.
    ============================================================ */
 
 :root {
+  /* Win95 system grays */
+  --w95-bg: #c0c0c0;
+  --w95-bg-dark: #808080;
+  --w95-bg-darker: #404040;
+  --w95-white: #ffffff;
+  --w95-black: #000000;
+
+  /* The classic 3D border trick */
+  --w95-border-light: #ffffff;
+  --w95-border-mid: #dfdfdf;
+  --w95-border-dark: #808080;
+  --w95-border-darker: #404040;
+
+  /* Titlebar */
+  --w95-titlebar-active: #000080;
+  --w95-titlebar-active-end: #1084d0;
+  --w95-titlebar-inactive: #808080;
+  --w95-titlebar-text: #ffffff;
+
   /* Desktop */
-  --color-desktop-bg: #1c1c1e;
-  --color-menubar-bg: rgba(30, 30, 30, 0.72);
-  --color-dock-bg: rgba(255, 255, 255, 0.18);
+  --color-desktop-bg: #008080;
 
   /* Window chrome */
-  --color-window-bg: rgba(28, 28, 30, 0.85);
-  --color-window-border: rgba(255, 255, 255, 0.12);
-  --color-window-titlebar: rgba(44, 44, 46, 0.9);
-  --color-window-shadow: rgba(0, 0, 0, 0.5);
+  --color-window-bg: #c0c0c0;
+  --color-window-border: #808080;
+  --color-window-titlebar: #000080;
 
-  /* Traffic lights */
-  --color-close: #ff5f57;
-  --color-minimize: #febc2e;
-  --color-fullscreen: #28c840;
+  /* Text on gray surfaces */
+  --color-text-primary: #000000;
+  --color-text-secondary: #444444;
+  --color-text-tertiary: #808080;
+  --color-text-on-titlebar: #ffffff;
 
-  /* Text */
-  --color-text-primary: rgba(255, 255, 255, 0.92);
-  --color-text-secondary: rgba(255, 255, 255, 0.55);
-  --color-text-tertiary: rgba(255, 255, 255, 0.28);
+  /* Accent */
+  --color-accent: #000080;
+  --color-accent-hover: #1084d0;
 
-  /* Accent (user-selectable, default blue) */
-  --color-accent: #0a84ff;
-  --color-accent-hover: #409cff;
+  /* Danger red — still referenced by several apps for destructive actions */
+  --color-close: #c00000;
 
   /* Sidebar */
-  --color-sidebar-bg: rgba(44, 44, 46, 0.7);
-  --color-sidebar-active: rgba(255, 255, 255, 0.1);
+  --color-sidebar-bg: #c0c0c0;
+  --color-sidebar-active: #000080;
 
-  /* Spotlight */
-  --color-spotlight-bg: rgba(40, 40, 40, 0.88);
-  --color-spotlight-border: rgba(255, 255, 255, 0.1);
-}
+  /* Spotlight / Run dialog */
+  --color-spotlight-bg: #c0c0c0;
+  --color-spotlight-border: #808080;
 
-/* Light mode overrides */
-[data-theme='light'] {
-  --color-desktop-bg: #e8e8ed;
-  --color-menubar-bg: rgba(236, 236, 241, 0.82);
-  --color-dock-bg: rgba(200, 200, 210, 0.55);
-  --color-window-bg: rgba(242, 242, 247, 0.92);
-  --color-window-border: rgba(0, 0, 0, 0.08);
-  --color-window-titlebar: rgba(230, 230, 235, 0.95);
-  --color-text-primary: rgba(0, 0, 0, 0.88);
-  --color-text-secondary: rgba(0, 0, 0, 0.5);
-  --color-text-tertiary: rgba(0, 0, 0, 0.25);
-  --color-sidebar-bg: rgba(215, 215, 220, 0.75);
+  /* Font */
+  --font-ui: 'Arial', 'Helvetica', sans-serif;
 }
 
 /* ============================================================
@@ -73,11 +76,10 @@ body {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  font-family: 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont,
-    'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: 'Arial', 'Helvetica', sans-serif;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: none;
   color: var(--color-text-primary);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -88,45 +90,121 @@ body {
 }
 
 /* ============================================================
-   Glass effect — menu bar, dock, windows, panels, spotlight,
-   notification center.
+   Win95 surfaces & controls
    ============================================================ */
 
+/* Raised surface — buttons, panels, window frames. Also the replacement for
+   the old `.glass` class so every panel that used it becomes a solid Win95
+   surface (no blur) instead of disappearing. */
+.win95-raised,
 .glass {
-  background: var(--color-window-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--color-window-border);
+  background: var(--w95-bg);
+  border-style: solid;
+  border-width: 2px;
+  border-color: var(--w95-border-light) var(--w95-border-dark) var(--w95-border-dark)
+    var(--w95-border-light);
 }
 
-.glass-menubar {
-  background: var(--color-menubar-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+/* Sunken surface — input fields, terminal areas, content wells */
+.win95-sunken {
+  background: var(--w95-white);
+  border-style: solid;
+  border-width: 2px;
+  border-color: var(--w95-border-dark) var(--w95-border-light) var(--w95-border-light)
+    var(--w95-border-dark);
 }
 
-.glass-dock {
-  background: var(--color-dock-bg);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid var(--color-window-border);
+/* Button — normal state */
+.win95-btn {
+  background: var(--w95-bg);
+  border-style: solid;
+  border-width: 2px;
+  border-color: var(--w95-border-light) var(--w95-border-darker) var(--w95-border-darker)
+    var(--w95-border-light);
+  padding: 4px 12px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--w95-black);
+  cursor: default;
+  user-select: none;
+  white-space: nowrap;
 }
 
-/* ============================================================
-   Shadows
-   ============================================================ */
-
-.window-shadow {
-  box-shadow: 0 22px 70px 4px rgba(0, 0, 0, 0.56),
-    0 0 0 1px rgba(255, 255, 255, 0.06);
+.win95-btn:active {
+  border-color: var(--w95-border-darker) var(--w95-border-light) var(--w95-border-light)
+    var(--w95-border-darker);
+  padding: 5px 11px 3px 13px;
 }
 
-.dock-shadow {
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+/* Depressed button — active taskbar item, pressed Start */
+.win95-btn-pressed {
+  background: var(--w95-bg);
+  border-style: solid;
+  border-width: 2px;
+  border-color: var(--w95-border-darker) var(--w95-border-light) var(--w95-border-light)
+    var(--w95-border-darker);
+  padding: 4px 12px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--w95-black);
+  cursor: default;
+  user-select: none;
+  white-space: nowrap;
 }
 
-.menubar-shadow {
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+/* Menu item */
+.win95-menu-item {
+  padding: 3px 20px;
+  font-size: 12px;
+  font-family: var(--font-ui);
+  color: var(--w95-black);
+  cursor: default;
+  white-space: nowrap;
+}
+.win95-menu-item:hover {
+  background: var(--color-accent);
+  color: var(--w95-white);
+}
+
+/* Menu separator — double-line rule */
+.win95-separator {
+  height: 0;
+  border-top: 1px solid var(--w95-border-dark);
+  border-bottom: 1px solid var(--w95-border-light);
+  margin: 3px 4px;
+}
+
+/* Titlebar */
+.win95-titlebar {
+  background: linear-gradient(
+    90deg,
+    var(--w95-titlebar-active) 0%,
+    var(--w95-titlebar-active-end) 100%
+  );
+  color: var(--w95-titlebar-text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: bold;
+  padding: 3px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.win95-titlebar-inactive {
+  background: var(--w95-titlebar-inactive) !important;
+}
+
+/* Taskbar */
+.win95-taskbar {
+  background: var(--w95-bg);
+  border-top: 2px solid var(--w95-border-light);
+  height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  gap: 4px;
 }
 
 /* ============================================================

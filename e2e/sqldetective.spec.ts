@@ -13,10 +13,19 @@ async function bootAndLogin(page: Page) {
   // Boot auto-advances (~1.8s); the lock screen shows the PIN hint.
   await expect(page.getByText(/Hint: PIN is/)).toBeVisible({ timeout: 15_000 })
   for (const d of '0000') await page.keyboard.press(d)
-  // Desktop is up once the dock renders the Inbox tile.
-  await expect(page.getByRole('button', { name: 'Inbox' })).toBeVisible({
+  // Desktop is up once the Win95 taskbar renders the Start button.
+  await expect(page.getByRole('button', { name: 'Start' })).toBeVisible({
     timeout: 10_000,
   })
+}
+
+/** Open the Inbox window via the Start Menu and return its dialog locator. */
+async function openInbox(page: Page): Promise<Locator> {
+  await page.getByRole('button', { name: 'Start' }).click()
+  await page.getByTestId('start-menu').getByRole('button', { name: /Inbox/ }).click()
+  const inbox = page.getByRole('dialog', { name: 'Inbox' })
+  await expect(inbox).toBeVisible()
+  return inbox
 }
 
 /** Replace the SQL editor contents (without running). */
@@ -38,11 +47,8 @@ async function runSql(page: Page, terminal: Locator, sql: string) {
  * is now an email client: clicking the case email opens the reader, which has
  * the "Open SQL Terminal" action.
  */
-async function openTerminalForCase(
-  page: Page,
-  inbox: Locator,
-  titleRe: RegExp
-) {
+async function openTerminalForCase(page: Page, titleRe: RegExp) {
+  const inbox = await openInbox(page)
   await inbox.getByRole('button', { name: titleRe }).click()
   await inbox.getByRole('button', { name: 'Open SQL Terminal' }).click()
 }
@@ -70,13 +76,11 @@ test('SQL Detective: solve Case 1 end-to-end and unlock Case 2', async ({
   await page.goto('/')
   await bootAndLogin(page)
 
-  // Dock badge: one unread case (Case 1) on first boot.
-  await expect(page.getByTestId('dock-badge-inbox')).toHaveText('1')
+  // Taskbar tray badge: one unread case (Case 1) on first boot.
+  await expect(page.getByTestId('taskbar-unread-inbox')).toHaveText('1')
 
-  // 1. Open the Inbox — three case emails, cases 2 & 3 locked.
-  await page.getByRole('button', { name: 'Inbox' }).click()
-  const inbox = page.getByRole('dialog', { name: 'Inbox' })
-  await expect(inbox).toBeVisible()
+  // 1. Open the Inbox via the Start Menu — three case emails, cases 2 & 3 locked.
+  const inbox = await openInbox(page)
   // Each case is an email row labeled by its subject "Case #000X — Title".
   await expect(inbox.getByRole('button', { name: /The Missing Muffin/ })).toBeVisible()
   await expect(inbox.getByRole('button', { name: /The Unauthorized Nap/ })).toBeVisible()
@@ -89,8 +93,8 @@ test('SQL Detective: solve Case 1 end-to-end and unlock Case 2', async ({
   // 2. Open Case 1's email → reader shows the briefing; launch its SQL Terminal.
   await inbox.getByRole('button', { name: /The Missing Muffin/ }).click()
   await expect(inbox.getByText(/dispatch@citypd\.gov/)).toBeVisible()
-  // Opening the unread email clears the dock badge.
-  await expect(page.getByTestId('dock-badge-inbox')).toHaveCount(0)
+  // Opening the unread email clears the taskbar tray badge.
+  await expect(page.getByTestId('taskbar-unread-inbox')).toHaveCount(0)
   // …and drops a case folder onto the desktop (scope to the desktop icon, since
   // the same text also appears as the email subject).
   await expect(
@@ -147,7 +151,7 @@ test('SQL Detective: solve Case 1 end-to-end and unlock Case 2', async ({
   await page.reload()
   await bootAndLogin(page)
   // Case 2 became unlocked-but-unopened → the badge returns to 1.
-  await expect(page.getByTestId('dock-badge-inbox')).toHaveText('1')
+  await expect(page.getByTestId('taskbar-unread-inbox')).toHaveText('1')
   // The Case 1 desktop folder persisted across the reload.
   await expect(
     page
@@ -155,9 +159,7 @@ test('SQL Detective: solve Case 1 end-to-end and unlock Case 2', async ({
       .filter({ hasText: 'Case #0001 — The Missing Muffin' })
   ).toBeVisible()
 
-  await page.getByRole('button', { name: 'Inbox' }).click()
-  const inbox2 = page.getByRole('dialog', { name: 'Inbox' })
-  await expect(inbox2).toBeVisible()
+  const inbox2 = await openInbox(page)
   // Case 1's email carries the CLOSED badge.
   await expect(inbox2.getByText(/CLOSED/)).toHaveCount(1)
 
@@ -173,9 +175,7 @@ test('SQL Detective: RUN button executes queries and surfaces errors', async ({
   await page.goto('/')
   await bootAndLogin(page)
 
-  await page.getByRole('button', { name: 'Inbox' }).click()
-  const inbox = page.getByRole('dialog', { name: 'Inbox' })
-  await openTerminalForCase(page, inbox, /The Missing Muffin/)
+  await openTerminalForCase(page, /The Missing Muffin/)
   const terminal = page.getByRole('dialog', { name: 'SQL Terminal' })
   await expect(
     terminal.getByText('Ready. Run a query with Ctrl+Enter.')
@@ -202,9 +202,7 @@ test('SQL Detective: wrong answer is rejected', async ({ page }) => {
   await page.goto('/')
   await bootAndLogin(page)
 
-  await page.getByRole('button', { name: 'Inbox' }).click()
-  const inbox = page.getByRole('dialog', { name: 'Inbox' })
-  await openTerminalForCase(page, inbox, /The Missing Muffin/)
+  await openTerminalForCase(page, /The Missing Muffin/)
   const terminal = page.getByRole('dialog', { name: 'SQL Terminal' })
   await expect(
     terminal.getByText('Ready. Run a query with Ctrl+Enter.')

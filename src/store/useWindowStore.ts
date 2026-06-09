@@ -40,7 +40,9 @@ interface WindowState {
   activeId: () => string | null
 }
 
-const MENUBAR_H = 28
+// No top menu bar in the Win95 shell; the 34px taskbar sits at the bottom.
+const MENUBAR_H = 0
+const TASKBAR_H = 34
 const DEFAULT_W = 720
 const DEFAULT_H = 480
 const CASCADE = 28
@@ -53,7 +55,8 @@ function spawnBounds(index: number): WindowBounds {
   const vh = typeof window !== 'undefined' ? window.innerHeight : 800
   const offset = (index % 6) * CASCADE
   const x = Math.max(40, Math.round((vw - DEFAULT_W) / 2) - 60 + offset)
-  const y = Math.max(MENUBAR_H + 12, Math.round((vh - DEFAULT_H) / 2) - 40 + offset)
+  // Center in the work area above the taskbar, never above the top edge.
+  const y = Math.max(8, Math.round((vh - TASKBAR_H - DEFAULT_H) / 2) + offset)
   return { x, y, width: DEFAULT_W, height: DEFAULT_H }
 }
 
@@ -162,9 +165,9 @@ export const useWindowStore = create<WindowState>()((set, get) => ({
               height: win.height,
             },
             x: 0,
-            y: MENUBAR_H,
+            y: 0,
             width: vw,
-            height: vh - MENUBAR_H,
+            height: vh - TASKBAR_H, // leave room for the taskbar at the bottom
           },
         },
         order: [...s.order.filter((w) => w !== id), id],
@@ -180,8 +183,8 @@ export const useWindowStore = create<WindowState>()((set, get) => ({
       if (bounds.width !== undefined) merged.width = Math.max(MIN_W, merged.width)
       if (bounds.height !== undefined)
         merged.height = Math.max(MIN_H, merged.height)
-      // Keep the titlebar from going under the menu bar.
-      if (bounds.y !== undefined) merged.y = Math.max(MENUBAR_H, merged.y)
+      // Keep the titlebar from going above the top edge.
+      if (bounds.y !== undefined) merged.y = Math.max(0, merged.y)
       return { windows: { ...s.windows, [id]: merged } }
     }),
 

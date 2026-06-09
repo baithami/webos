@@ -17,6 +17,7 @@ interface UIState {
   notificationsOpen: boolean
   controlCenterOpen: boolean
   appleMenuOpen: boolean
+  startMenuOpen: boolean
   notifications: AppNotification[]
 
   openSpotlight: () => void
@@ -26,6 +27,7 @@ interface UIState {
   toggleNotifications: () => void
   toggleControlCenter: () => void
   toggleAppleMenu: () => void
+  toggleStartMenu: () => void
 
   /** Close every transient popover/overlay at once. */
   closeAllPopovers: () => void
@@ -46,6 +48,7 @@ export const useUIStore = create<UIState>()((set) => ({
   notificationsOpen: false,
   controlCenterOpen: false,
   appleMenuOpen: false,
+  startMenuOpen: false,
   notifications: [],
 
   openSpotlight: () =>
@@ -54,6 +57,7 @@ export const useUIStore = create<UIState>()((set) => ({
       notificationsOpen: false,
       controlCenterOpen: false,
       appleMenuOpen: false,
+      startMenuOpen: false,
     }),
   closeSpotlight: () => set({ spotlightOpen: false }),
   toggleSpotlight: () =>
@@ -62,6 +66,7 @@ export const useUIStore = create<UIState>()((set) => ({
       notificationsOpen: false,
       controlCenterOpen: false,
       appleMenuOpen: false,
+      startMenuOpen: false,
     })),
 
   toggleNotifications: () =>
@@ -69,18 +74,29 @@ export const useUIStore = create<UIState>()((set) => ({
       notificationsOpen: !s.notificationsOpen,
       controlCenterOpen: false,
       appleMenuOpen: false,
+      startMenuOpen: false,
     })),
   toggleControlCenter: () =>
     set((s) => ({
       controlCenterOpen: !s.controlCenterOpen,
       notificationsOpen: false,
       appleMenuOpen: false,
+      startMenuOpen: false,
     })),
   toggleAppleMenu: () =>
     set((s) => ({
       appleMenuOpen: !s.appleMenuOpen,
       notificationsOpen: false,
       controlCenterOpen: false,
+      startMenuOpen: false,
+    })),
+  toggleStartMenu: () =>
+    set((s) => ({
+      startMenuOpen: !s.startMenuOpen,
+      notificationsOpen: false,
+      controlCenterOpen: false,
+      appleMenuOpen: false,
+      spotlightOpen: false,
     })),
 
   closeAllPopovers: () =>
@@ -89,6 +105,7 @@ export const useUIStore = create<UIState>()((set) => ({
       notificationsOpen: false,
       controlCenterOpen: false,
       appleMenuOpen: false,
+      startMenuOpen: false,
     }),
 
   pushNotification: (n) =>
