@@ -75,8 +75,8 @@ Director Zoran has made it clear: nobody sleeps on city time.
       (6,6,'06:00','14:00','2026-05-19','present');
   `,
   solution: {
-    validate: (rows) =>
-      rows.some((r) => r['name'] === 'Craig Muller' || r['employee_id'] === 4),
+    prompt: 'Who was sleeping on the bench?',
+    answer: 'Craig Muller',
     hints: [
       "Two uniform numbers end in '447'. Find both employees and figure out which one's uniform belongs to the Parks department.",
       "The uniform_assignments table links uniform IDs to employee IDs. The city_employees table has names. These tables share a common column.",

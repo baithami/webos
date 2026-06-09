@@ -8,6 +8,7 @@ import { sql } from '@codemirror/lang-sql'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { useCaseStore } from '@/store/useCaseStore'
 import { createCaseDb, executeQuery } from '@/lib/sqldetective/queryEngine'
+import { checkAnswer } from '@/lib/sqldetective/answer'
 import type { QueryOutcome } from '@/lib/sqldetective/types'
 
 // The core gameplay interface. On mount (and whenever the active case changes)
@@ -37,6 +38,12 @@ export default function SqlTerminal() {
   const [schemaOpen, setSchemaOpen] = useState(false)
   const [currentHint, setCurrentHint] = useState<string | null>(null)
   const [submitResult, setSubmitResult] = useState<'correct' | 'wrong' | null>(null)
+  // Set once the player runs a successful query — the accusation can only be made
+  // after they've actually investigated.
+  const [hasRunSuccess, setHasRunSuccess] = useState(false)
+  // The accusation bar: open state + the name the player is typing.
+  const [accusing, setAccusing] = useState(false)
+  const [accusation, setAccusation] = useState('')
 
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -52,6 +59,9 @@ export default function SqlTerminal() {
     setOutcome(null)
     setSubmitResult(null)
     setCurrentHint(null)
+    setHasRunSuccess(false)
+    setAccusing(false)
+    setAccusation('')
     dbRef.current?.close()
     dbRef.current = null
 
@@ -87,6 +97,7 @@ export default function SqlTerminal() {
     const result = executeQuery(getSql(), dbRef.current, activeCase.schema)
     setOutcome(result)
     setSubmitResult(null)
+    if (result.type === 'success') setHasRunSuccess(true)
   }, [activeCase, dbStatus, getSql])
 
   // Keep a ref to the latest runQuery so the (create-once) CodeMirror keymap
@@ -138,12 +149,13 @@ export default function SqlTerminal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleSubmit = () => {
-    if (!activeCase || outcome?.type !== 'success') return
-    const correct = activeCase.solution.validate(outcome.result.rows)
+  const handleAccuse = () => {
+    if (!activeCase) return
+    const correct = checkAnswer(accusation, activeCase.solution)
     if (correct) {
       completeCase(activeCase.id)
       setSubmitResult('correct')
+      setAccusing(false)
     } else {
       setSubmitResult('wrong')
     }
@@ -319,6 +331,37 @@ export default function SqlTerminal() {
         </div>
       )}
 
+      {/* Accusation bar — type the suspect's name to submit your answer. */}
+      {accusing && (
+        <div className="flex shrink-0 items-center gap-2 border-t border-[#2a4a2a] bg-[#0d150d] px-4 py-2 font-mono text-[12px]">
+          <span className="shrink-0 text-[#b8ff6a]">{activeCase.solution.prompt}</span>
+          <input
+            autoFocus
+            value={accusation}
+            onChange={(e) => setAccusation(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAccuse()
+              if (e.key === 'Escape') setAccusing(false)
+            }}
+            placeholder="Name the suspect…"
+            className="min-w-0 flex-1 rounded border border-[#2a4a2a] bg-[#0a0f0a] px-2 py-1 text-[#7fbf7f] placeholder:text-[#2a5a2a] focus:border-[#7fbf7f] focus:outline-none"
+          />
+          <button
+            onClick={handleAccuse}
+            disabled={!accusation.trim()}
+            className="shrink-0 rounded border border-[#b8ff6a] px-3 py-1 font-bold text-[#b8ff6a] hover:bg-[#162016] disabled:cursor-not-allowed disabled:border-[#2a4a2a] disabled:text-[#2a5a2a]"
+          >
+            CONFIRM
+          </button>
+          <button
+            onClick={() => setAccusing(false)}
+            className="shrink-0 text-[#4a7a4a] hover:text-[#7fbf7f]"
+          >
+            [cancel]
+          </button>
+        </div>
+      )}
+
       {/* Submit result message */}
       {submitResult === 'wrong' && (
         <div className="shrink-0 border-t border-[#2a4a2a] bg-[#1a0a0a] px-4 py-2 font-mono text-[12px] text-[#ff6b6b]">
@@ -343,8 +386,12 @@ export default function SqlTerminal() {
           {dbStatus === 'loading' ? 'LOADING' : dbStatus === 'error' ? 'ERROR' : 'READY'}
         </span>
         <button
-          onClick={handleSubmit}
-          disabled={outcome?.type !== 'success'}
+          onClick={() => {
+            setAccusing((v) => !v)
+            setSubmitResult(null)
+          }}
+          disabled={!hasRunSuccess}
+          title={hasRunSuccess ? undefined : 'Run a query to investigate first'}
           className="rounded border border-[#b8ff6a] px-3 py-1 font-mono text-[11px] text-[#b8ff6a] hover:bg-[#162016] disabled:cursor-not-allowed disabled:border-[#2a4a2a] disabled:text-[#2a5a2a]"
         >
           [✓] SUBMIT ANSWER

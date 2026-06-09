@@ -16,7 +16,9 @@ export interface GameCase {
   schema: CaseSchema
   dbSetupSQL: string // CREATE TABLE + INSERT statements
   solution: {
-    validate: (rows: Record<string, unknown>[]) => boolean
+    prompt: string // accusation question, e.g. "Who took the muffin?"
+    answer: string // canonical name, e.g. "Dave Kowalski"
+    accept?: string[] // extra accepted spellings/aliases (last name is auto-accepted)
     hints: [string, string, string]
   }
 }

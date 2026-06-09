@@ -57,12 +57,8 @@ Tip from your supervisor: GROUP BY is how SQL counts things by category.
       (16,'Brenda Watts','Oak & 5th','2026-05-18',103);
   `,
   solution: {
-    validate: (rows) => {
-      const brenda = rows.find((r) => r['civilian_name'] === 'Brenda Watts')
-      if (!brenda) return false
-      const count = brenda['count'] ?? brenda['COUNT(*)'] ?? brenda['citation_count']
-      return count === 6 || rows.length === 1
-    },
+    prompt: 'Who is the most habitual jaywalker?',
+    answer: 'Brenda Watts',
     hints: [
       "This problem is about counting — how many times does each person appear in the table?",
       "GROUP BY lets you organize rows into groups. Try: SELECT civilian_name, COUNT(*) FROM jaywalking_citations GROUP BY civilian_name",

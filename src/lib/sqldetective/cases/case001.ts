@@ -75,10 +75,8 @@ This may seem trivial, Detective. But Director Zoran has declared all minor infr
       (3,'plain',4,4,'2026-05-20');
   `,
   solution: {
-    validate: (rows) =>
-      rows.some(
-        (r) => r['name'] === 'Dave Kowalski' || r['employee_id'] === 2
-      ),
+    prompt: 'Who took the muffin?',
+    answer: 'Dave Kowalski',
     hints: [
       "The break room is on the 4th floor. Start by looking at who was logged into the break room between 09:00 and 09:20.",
       "You've narrowed down the time window. Now check the employees table — only someone assigned to the 4th floor is a realistic suspect.",
