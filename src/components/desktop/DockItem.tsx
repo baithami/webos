@@ -21,6 +21,8 @@ interface DockItemProps {
   isRunning?: boolean
   bouncing?: boolean
   onLaunch: (id: string) => void
+  /** macOS-style unread bubble; renders only when > 0. */
+  badge?: number
 }
 
 /**
@@ -33,6 +35,7 @@ export default function DockItem({
   isRunning = false,
   bouncing = false,
   onLaunch,
+  badge,
 }: DockItemProps) {
   const ref = useRef<HTMLButtonElement>(null)
 
@@ -82,6 +85,18 @@ export default function DockItem({
           strokeWidth={1.75}
         />
       </motion.button>
+
+      {/* Unread badge (macOS corner bubble) */}
+      {badge != null && badge > 0 && (
+        <span
+          data-testid={`dock-badge-${app.id}`}
+          aria-label={`${badge} unread`}
+          className="pointer-events-none absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff453a] px-1 text-[11px] font-semibold text-white shadow-sm"
+          style={{ zIndex: 1 }}
+        >
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
 
       {/* Running indicator */}
       <span

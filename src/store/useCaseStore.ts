@@ -13,16 +13,21 @@ interface CaseState {
   completedCases: string[]
   hintsUsed: Record<string, number> // caseId → highest hint index shown (0-2)
   xp: number
+  openedCases: string[] // case ids whose dispatch email has been opened (≠ completed)
+  desktopIconsCreated: string[] // case ids that already have a desktop folder
 
   // Derived
   activeCase: () => GameCase | undefined
   isLocked: (caseId: string) => boolean
   nextHint: (caseId: string) => string | null
+  unreadCount: () => number // unlocked cases whose email hasn't been opened yet
 
   // Actions
   setActiveCase: (id: string) => void
   completeCase: (id: string) => void
   useHint: (caseId: string) => void
+  openCase: (caseId: string) => void
+  markDesktopIconCreated: (caseId: string) => void
 }
 
 export const useCaseStore = create<CaseState>()(
@@ -32,6 +37,8 @@ export const useCaseStore = create<CaseState>()(
       completedCases: [],
       hintsUsed: {},
       xp: 0,
+      openedCases: [],
+      desktopIconsCreated: [],
 
       activeCase: () => CASES.find((c) => c.id === get().activeCaseId),
 
@@ -51,6 +58,12 @@ export const useCaseStore = create<CaseState>()(
         return gameCase.solution.hints[next]
       },
 
+      unreadCount: () => {
+        const { openedCases, isLocked } = get()
+        return CASES.filter((c) => !isLocked(c.id) && !openedCases.includes(c.id))
+          .length
+      },
+
       setActiveCase: (id) => set({ activeCaseId: id }),
 
       completeCase: (id) =>
@@ -67,6 +80,20 @@ export const useCaseStore = create<CaseState>()(
           if (used >= 2) return s
           return { hintsUsed: { ...s.hintsUsed, [caseId]: used + 1 } }
         }),
+
+      openCase: (caseId) =>
+        set((s) =>
+          s.openedCases.includes(caseId)
+            ? s
+            : { openedCases: [...s.openedCases, caseId] }
+        ),
+
+      markDesktopIconCreated: (caseId) =>
+        set((s) =>
+          s.desktopIconsCreated.includes(caseId)
+            ? s
+            : { desktopIconsCreated: [...s.desktopIconsCreated, caseId] }
+        ),
     }),
     {
       name: 'sql-detective-game-state',

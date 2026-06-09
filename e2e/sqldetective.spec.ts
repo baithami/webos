@@ -33,6 +33,20 @@ async function runSql(page: Page, terminal: Locator, sql: string) {
   await page.keyboard.press('Control+Enter')
 }
 
+/**
+ * From an open Inbox, open a case email and launch its SQL Terminal. The Inbox
+ * is now an email client: clicking the case email opens the reader, which has
+ * the "Open SQL Terminal" action.
+ */
+async function openTerminalForCase(
+  page: Page,
+  inbox: Locator,
+  titleRe: RegExp
+) {
+  await inbox.getByRole('button', { name: titleRe }).click()
+  await inbox.getByRole('button', { name: 'Open SQL Terminal' }).click()
+}
+
 test.beforeEach(async ({ page }) => {
   // Start clean: wipe persisted game progress before the app boots — but ONLY on
   // the first load. addInitScript runs on every navigation (including reload),
@@ -56,21 +70,36 @@ test('SQL Detective: solve Case 1 end-to-end and unlock Case 2', async ({
   await page.goto('/')
   await bootAndLogin(page)
 
-  // 1. Open the Inbox — three cases, cases 2 & 3 locked.
+  // Dock badge: one unread case (Case 1) on first boot.
+  await expect(page.getByTestId('dock-badge-inbox')).toHaveText('1')
+
+  // 1. Open the Inbox — three case emails, cases 2 & 3 locked.
   await page.getByRole('button', { name: 'Inbox' }).click()
   const inbox = page.getByRole('dialog', { name: 'Inbox' })
   await expect(inbox).toBeVisible()
-  // Case titles appear in the sidebar rows (and, for the selected case, in the
-  // detail header too) — target the rows by their button role to stay unique.
+  // Each case is an email row labeled by its subject "Case #000X — Title".
   await expect(inbox.getByRole('button', { name: /The Missing Muffin/ })).toBeVisible()
   await expect(inbox.getByRole('button', { name: /The Unauthorized Nap/ })).toBeVisible()
   await expect(inbox.getByRole('button', { name: /The Serial Jaywalker/ })).toBeVisible()
-  // Two LOCKED badges (cases 2 & 3), one OPEN (case 1).
-  await expect(inbox.getByText('LOCKED', { exact: true })).toHaveCount(2)
-  await expect(inbox.getByText('OPEN', { exact: true })).toHaveCount(1)
 
-  // 2. Open the SQL Terminal for Case 1.
-  await inbox.getByRole('button', { name: 'OPEN TERMINAL' }).click()
+  // A locked case email opens the reader's "locked" notice, not the briefing.
+  await inbox.getByRole('button', { name: /The Unauthorized Nap/ }).click()
+  await expect(inbox.getByText(/This case is locked/)).toBeVisible()
+
+  // 2. Open Case 1's email → reader shows the briefing; launch its SQL Terminal.
+  await inbox.getByRole('button', { name: /The Missing Muffin/ }).click()
+  await expect(inbox.getByText(/dispatch@citypd\.gov/)).toBeVisible()
+  // Opening the unread email clears the dock badge.
+  await expect(page.getByTestId('dock-badge-inbox')).toHaveCount(0)
+  // …and drops a case folder onto the desktop (scope to the desktop icon, since
+  // the same text also appears as the email subject).
+  await expect(
+    page
+      .locator('[data-desktop-icon]')
+      .filter({ hasText: 'Case #0001 — The Missing Muffin' })
+  ).toBeVisible()
+
+  await inbox.getByRole('button', { name: 'Open SQL Terminal' }).click()
   const terminal = page.getByRole('dialog', { name: 'SQL Terminal' })
   await expect(terminal).toBeVisible()
   await expect(terminal.getByText('THE MISSING MUFFIN')).toBeVisible()
@@ -103,27 +132,39 @@ test('SQL Detective: solve Case 1 end-to-end and unlock Case 2', async ({
   await terminal.getByRole('button', { name: /HINT/ }).click()
   await expect(terminal.getByText(/HINT:/)).toBeVisible()
 
-  // 7. Run the answer query, then Submit → CASE CLOSED.
+  // 7. Run the answer query, then accuse the suspect by name → CASE CLOSED.
   await runSql(page, terminal, "SELECT * FROM employees WHERE name = 'Dave Kowalski'")
   await expect(terminal.getByRole('cell', { name: 'Dave Kowalski' })).toBeVisible()
   const submit = terminal.getByRole('button', { name: /SUBMIT ANSWER/ })
   await expect(submit).toBeEnabled()
   await submit.click()
+  // Accusation bar appears — type the suspect's name and confirm.
+  await terminal.getByPlaceholder(/Name the suspect/).fill('Dave Kowalski')
+  await terminal.getByRole('button', { name: 'CONFIRM' }).click()
   await expect(terminal.getByText(/CASE CLOSED/)).toBeVisible()
 
-  // 8. Refresh → re-login → Case 1 CLOSED, Case 2 now unlocked.
+  // 8. Refresh → re-login → Case 1 CLOSED, Case 2 now unlocked and unread.
   await page.reload()
   await bootAndLogin(page)
+  // Case 2 became unlocked-but-unopened → the badge returns to 1.
+  await expect(page.getByTestId('dock-badge-inbox')).toHaveText('1')
+  // The Case 1 desktop folder persisted across the reload.
+  await expect(
+    page
+      .locator('[data-desktop-icon]')
+      .filter({ hasText: 'Case #0001 — The Missing Muffin' })
+  ).toBeVisible()
+
   await page.getByRole('button', { name: 'Inbox' }).click()
   const inbox2 = page.getByRole('dialog', { name: 'Inbox' })
   await expect(inbox2).toBeVisible()
-  await expect(inbox2.getByText('CLOSED', { exact: true })).toHaveCount(1)
-  // Only Case 3 remains locked now that Case 2 is unlocked.
-  await expect(inbox2.getByText('LOCKED', { exact: true })).toHaveCount(1)
+  // Case 1's email carries the CLOSED badge.
+  await expect(inbox2.getByText(/CLOSED/)).toHaveCount(1)
 
-  // The Case 2 row is now clickable (not disabled).
-  const case2Row = inbox2.getByRole('button', { name: /The Unauthorized Nap/ })
-  await expect(case2Row).toBeEnabled()
+  // Case 2 now opens its briefing (no longer locked).
+  await inbox2.getByRole('button', { name: /The Unauthorized Nap/ }).click()
+  await expect(inbox2.getByText(/dispatch@citypd\.gov/)).toBeVisible()
+  await expect(inbox2.getByText(/This case is locked/)).toHaveCount(0)
 })
 
 test('SQL Detective: RUN button executes queries and surfaces errors', async ({
@@ -134,7 +175,7 @@ test('SQL Detective: RUN button executes queries and surfaces errors', async ({
 
   await page.getByRole('button', { name: 'Inbox' }).click()
   const inbox = page.getByRole('dialog', { name: 'Inbox' })
-  await inbox.getByRole('button', { name: 'OPEN TERMINAL' }).click()
+  await openTerminalForCase(page, inbox, /The Missing Muffin/)
   const terminal = page.getByRole('dialog', { name: 'SQL Terminal' })
   await expect(
     terminal.getByText('Ready. Run a query with Ctrl+Enter.')
@@ -163,15 +204,17 @@ test('SQL Detective: wrong answer is rejected', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Inbox' }).click()
   const inbox = page.getByRole('dialog', { name: 'Inbox' })
-  await inbox.getByRole('button', { name: 'OPEN TERMINAL' }).click()
+  await openTerminalForCase(page, inbox, /The Missing Muffin/)
   const terminal = page.getByRole('dialog', { name: 'SQL Terminal' })
   await expect(
     terminal.getByText('Ready. Run a query with Ctrl+Enter.')
   ).toBeVisible({ timeout: 20_000 })
 
-  // An innocent employee is not the answer.
+  // Investigate, then accuse the wrong (innocent) employee.
   await runSql(page, terminal, "SELECT * FROM employees WHERE name = 'Alice Chen'")
   await expect(terminal.getByRole('cell', { name: 'Alice Chen' })).toBeVisible()
   await terminal.getByRole('button', { name: /SUBMIT ANSWER/ }).click()
+  await terminal.getByPlaceholder(/Name the suspect/).fill('Tom Birch')
+  await terminal.getByRole('button', { name: 'CONFIRM' }).click()
   await expect(terminal.getByText(/not the answer/i)).toBeVisible()
 })

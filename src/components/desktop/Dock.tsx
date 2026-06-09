@@ -5,6 +5,7 @@ import { motion, useMotionValue } from 'framer-motion'
 import { PINNED_APPS } from '@/lib/apps'
 import { Z } from '@/lib/constants'
 import { useWindowStore } from '@/store/useWindowStore'
+import { useCaseStore } from '@/store/useCaseStore'
 import DockItem from './DockItem'
 
 /**
@@ -19,6 +20,7 @@ export default function Dock() {
   const windows = useWindowStore((s) => s.windows)
   const openApp = useWindowStore((s) => s.openApp)
   const toggleMinimize = useWindowStore((s) => s.toggleMinimize)
+  const unreadCount = useCaseStore((s) => s.unreadCount())
 
   const handleLaunch = (id: string) => {
     const existing = windows[id]
@@ -57,6 +59,7 @@ export default function Dock() {
             isRunning={Boolean(windows[app.id])}
             bouncing={bouncing === app.id}
             onLaunch={handleLaunch}
+            badge={app.id === 'inbox' ? unreadCount : undefined}
           />
         ))}
       </motion.nav>
