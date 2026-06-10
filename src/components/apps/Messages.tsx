@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Video, Phone, Info, ArrowUp, PenSquare } from 'lucide-react'
 
 // Messages — a static, good-looking iMessage clone. Non-functional: the data is
 // mock and the composer doesn't send anywhere. Purely for the look.
@@ -92,21 +91,34 @@ export default function Messages() {
   return (
     <div className="flex h-full w-full">
       {/* Conversation list */}
-      <aside className="flex h-full w-72 shrink-0 flex-col border-r border-[var(--color-window-border)] bg-[var(--color-sidebar-bg)]">
-        <div className="flex h-12 shrink-0 items-center gap-2 px-3">
-          <div className="flex flex-1 items-center gap-2 rounded-lg bg-black/20 px-2.5 py-1.5">
-            <Search size={14} className="text-[var(--color-text-tertiary)]" />
-            <input
-              placeholder="Search"
-              className="w-full bg-transparent text-[13px] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
-            />
-          </div>
-          <button
-            aria-label="New message"
-            className="rounded-md p-1.5 text-[var(--color-accent)] hover:bg-white/10"
-          >
-            <PenSquare size={18} />
-          </button>
+      <aside
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          width: 240,
+          flexShrink: 0,
+          height: '100%',
+          background: '#c0c0c0',
+          borderRight: '2px solid #808080',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', height: 36, padding: '0 6px', gap: 4, borderBottom: '2px solid #808080' }}>
+          <input
+            placeholder="Search"
+            style={{
+              flex: 1,
+              height: 22,
+              background: '#ffffff',
+              borderStyle: 'solid',
+              borderWidth: 2,
+              borderColor: '#808080 #ffffff #ffffff #808080',
+              padding: '0 6px',
+              fontSize: 12,
+              fontFamily: 'Arial, sans-serif',
+              color: '#000000',
+              outline: 'none',
+            }}
+          />
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
@@ -114,12 +126,18 @@ export default function Messages() {
             <button
               key={c.id}
               onClick={() => setActiveId(c.id)}
-              className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left ${
-                activeId === c.id ? 'bg-[var(--color-accent)]' : 'hover:bg-white/5'
-              }`}
+              className="flex w-full items-center gap-3 px-2 py-2 text-left"
+              style={{ background: activeId === c.id ? '#000080' : 'transparent' }}
+              onMouseEnter={(e) => {
+                if (activeId !== c.id) e.currentTarget.style.background = '#c8c8c8'
+              }}
+              onMouseLeave={(e) => {
+                if (activeId !== c.id) e.currentTarget.style.background = 'transparent'
+              }}
             >
               <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${c.color} text-[14px] font-semibold text-white`}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold text-white"
+                style={{ background: '#000080' }}
               >
                 {initials(c.name)}
               </div>
@@ -163,26 +181,19 @@ export default function Messages() {
       {/* Conversation */}
       <div className="flex min-w-0 flex-1 flex-col bg-[var(--color-window-bg)]">
         {/* Header */}
-        <div className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--color-window-border)] bg-[var(--color-window-titlebar)] px-4">
-          <div
-            className={`flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br ${active.color} text-[12px] font-semibold text-white`}
-          >
-            {initials(active.name)}
-          </div>
-          <span className="text-[14px] font-semibold text-[var(--color-text-primary)]">
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          height: 32,
+          flexShrink: 0,
+          background: '#c0c0c0',
+          borderBottom: '2px solid #808080',
+          padding: '0 10px',
+          gap: 8,
+        }}>
+          <span style={{ flex: 1, fontSize: 12, fontWeight: 'bold', fontFamily: 'Arial, sans-serif', color: '#000000' }}>
             {active.name}
           </span>
-          <div className="ml-auto flex items-center gap-1 text-[var(--color-accent)]">
-            <button aria-label="Audio call" className="rounded-md p-1.5 hover:bg-white/10">
-              <Phone size={17} />
-            </button>
-            <button aria-label="Video call" className="rounded-md p-1.5 hover:bg-white/10">
-              <Video size={18} />
-            </button>
-            <button aria-label="Info" className="rounded-md p-1.5 hover:bg-white/10">
-              <Info size={18} />
-            </button>
-          </div>
         </div>
 
         {/* Messages */}
@@ -202,10 +213,13 @@ export default function Messages() {
                 )}
                 <div
                   className={`max-w-[70%] rounded-2xl px-3.5 py-2 text-[14px] leading-snug ${
-                    m.fromMe
-                      ? 'rounded-br-md bg-[#0a84ff] text-white'
-                      : 'rounded-bl-md bg-[var(--color-sidebar-active)] text-[var(--color-text-primary)]'
+                    m.fromMe ? 'rounded-br-md' : 'rounded-bl-md'
                   }`}
+                  style={
+                    m.fromMe
+                      ? { background: '#0a84ff', color: '#ffffff' }
+                      : { background: '#e4e4e4', color: '#000000' }
+                  }
                 >
                   {m.text}
                 </div>
@@ -215,22 +229,49 @@ export default function Messages() {
         </div>
 
         {/* Composer (non-functional) */}
-        <div className="flex shrink-0 items-center gap-2 border-t border-[var(--color-window-border)] px-3 py-2.5">
-          <div className="flex flex-1 items-center rounded-full border border-[var(--color-window-border)] bg-[var(--color-window-bg)] px-3 py-1.5">
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="iMessage"
-              className="w-full bg-transparent text-[14px] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
-            />
-          </div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '4px 6px',
+          borderTop: '2px solid #808080',
+          background: '#c0c0c0',
+        }}>
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && draft.trim() && setDraft('')}
+            placeholder="Type a message…"
+            style={{
+              flex: 1,
+              height: 22,
+              background: '#ffffff',
+              borderStyle: 'solid',
+              borderWidth: 2,
+              borderColor: '#808080 #ffffff #ffffff #808080',
+              padding: '0 6px',
+              fontSize: 12,
+              fontFamily: 'Arial, sans-serif',
+              color: '#000000',
+              outline: 'none',
+            }}
+          />
           <button
-            onClick={() => setDraft('')}
-            disabled={!draft.trim()}
-            aria-label="Send"
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0a84ff] text-white disabled:opacity-30"
+            onClick={() => draft.trim() && setDraft('')}
+            style={{
+              background: '#c0c0c0',
+              borderStyle: 'solid',
+              borderWidth: 2,
+              borderColor: '#ffffff #808080 #808080 #ffffff',
+              padding: '1px 10px',
+              fontSize: 12,
+              fontFamily: 'Arial, sans-serif',
+              color: '#000000',
+              cursor: 'default',
+              height: 22,
+            }}
           >
-            <ArrowUp size={16} strokeWidth={2.5} />
+            Send
           </button>
         </div>
       </div>

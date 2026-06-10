@@ -1,13 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  ChevronLeft,
-  ChevronRight,
-  RotateCw,
-  Search,
-  Lock,
-} from 'lucide-react'
 
 // Iframe-based browser. Real navigation/back-forward inside cross-origin frames
 // isn't observable, so we track our own visited stack and reset the iframe src.
@@ -64,46 +57,50 @@ export default function Safari() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col bg-[var(--color-window-bg)]">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
       {/* Toolbar */}
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-[var(--color-window-border)] bg-[var(--color-window-titlebar)] px-3">
-        <NavBtn disabled={index <= 0} onClick={back} label="Back">
-          <ChevronLeft size={18} />
-        </NavBtn>
-        <NavBtn
-          disabled={index >= history.length - 1}
-          onClick={forward}
-          label="Forward"
-        >
-          <ChevronRight size={18} />
-        </NavBtn>
-        <NavBtn
-          disabled={!current}
-          onClick={() => setReloadKey((k) => k + 1)}
-          label="Reload"
-        >
-          <RotateCw size={15} />
-        </NavBtn>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        height: 32,
+        flexShrink: 0,
+        background: '#c0c0c0',
+        borderBottom: '2px solid #808080',
+        padding: '0 6px',
+      }}>
+        {/* Back */}
+        <BrowserBtn disabled={index <= 0} onClick={back} label="Back">{'<'}</BrowserBtn>
+        {/* Forward */}
+        <BrowserBtn disabled={index >= history.length - 1} onClick={forward} label="Forward">{'>'}</BrowserBtn>
+        {/* Reload */}
+        <BrowserBtn disabled={!current} onClick={() => setReloadKey((k) => k + 1)} label="Reload">↻</BrowserBtn>
 
+        {/* Address bar — sunken Win95 input */}
         <form
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-black/25 px-3 py-1"
-          onSubmit={(e) => {
-            e.preventDefault()
-            go(address)
-          }}
+          style={{ display: 'flex', flex: 1, alignItems: 'center', gap: 4 }}
+          onSubmit={(e) => { e.preventDefault(); go(address) }}
         >
-          {current ? (
-            <Lock size={12} className="shrink-0 text-[var(--color-text-tertiary)]" />
-          ) : (
-            <Search size={13} className="shrink-0 text-[var(--color-text-tertiary)]" />
-          )}
           <input
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="Search or enter website name"
+            placeholder="Address"
             spellCheck={false}
-            className="min-w-0 flex-1 bg-transparent text-center text-[13px] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
+            style={{
+              flex: 1,
+              height: 22,
+              background: '#ffffff',
+              borderStyle: 'solid',
+              borderWidth: 2,
+              borderColor: '#808080 #ffffff #ffffff #808080',
+              padding: '0 6px',
+              fontSize: 12,
+              fontFamily: 'Arial, sans-serif',
+              color: '#000000',
+              outline: 'none',
+            }}
           />
+          <BrowserBtn disabled={false} onClick={() => go(address)} label="Go">Go</BrowserBtn>
         </form>
       </div>
 
@@ -127,42 +124,63 @@ export default function Safari() {
 
 function StartPage({ onPick }: { onPick: (url: string) => void }) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-6 p-6">
-      <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      background: '#c0c0c0',
+      gap: 16,
+      padding: 24,
+    }}>
+      <p style={{ fontSize: 14, fontWeight: 'bold', fontFamily: 'Arial, sans-serif', color: '#000000' }}>
         Favorites
-      </h1>
-      <div className="grid grid-cols-4 gap-4">
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
         {SHORTCUTS.map((s) => (
           <button
             key={s.name}
             onClick={() => onPick(s.url)}
-            className="flex flex-col items-center gap-2"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+              background: 'none',
+              border: 'none',
+              cursor: 'default',
+              padding: 8,
+            }}
           >
-            <div
-              className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${s.color} text-xl font-bold text-white shadow-lg`}
-            >
-              {s.name[0]}
-            </div>
-            <span className="text-[12px] text-[var(--color-text-secondary)]">
+            {/* Win95 style link icon — globe glyph */}
+            <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+              <circle cx="20" cy="20" r="16" fill="#ffffff" stroke="#000080" strokeWidth="2" />
+              <ellipse cx="20" cy="20" rx="7" ry="16" fill="none" stroke="#000080" strokeWidth="1.5" />
+              <line x1="5" y1="20" x2="35" y2="20" stroke="#000080" strokeWidth="1.5" />
+              <line x1="8" y1="13" x2="32" y2="13" stroke="#000080" strokeWidth="1" />
+              <line x1="8" y1="27" x2="32" y2="27" stroke="#000080" strokeWidth="1" />
+            </svg>
+            <span style={{ fontSize: 11, fontFamily: 'Arial, sans-serif', color: '#000080', textDecoration: 'underline' }}>
               {s.name}
             </span>
           </button>
         ))}
       </div>
-      <p className="max-w-sm text-center text-[11px] text-[var(--color-text-tertiary)]">
+      <p style={{ fontSize: 10, fontFamily: 'Arial, sans-serif', color: '#808080', textAlign: 'center', maxWidth: 300 }}>
         Some websites block being embedded in a frame and may not load here.
       </p>
     </div>
   )
 }
 
-function NavBtn({
-  disabled,
+function BrowserBtn({
+  disabled = false,
   onClick,
   label,
   children,
 }: {
-  disabled: boolean
+  disabled?: boolean
   onClick: () => void
   label: string
   children: React.ReactNode
@@ -172,7 +190,19 @@ function NavBtn({
       disabled={disabled}
       onClick={onClick}
       aria-label={label}
-      className="rounded-md p-1 text-[var(--color-text-secondary)] enabled:hover:bg-white/10 enabled:hover:text-[var(--color-text-primary)] disabled:opacity-30"
+      style={{
+        background: '#c0c0c0',
+        borderStyle: 'solid',
+        borderWidth: 2,
+        borderColor: '#ffffff #808080 #808080 #ffffff',
+        padding: '1px 8px',
+        fontSize: 12,
+        fontFamily: 'Arial, sans-serif',
+        color: disabled ? '#808080' : '#000000',
+        cursor: 'default',
+        flexShrink: 0,
+        height: 22,
+      }}
     >
       {children}
     </button>

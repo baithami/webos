@@ -1,19 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import {
-  FilePlus,
-  FolderOpen,
-  Save,
-  Bold,
-  Italic,
-  Underline,
-  Type,
-} from 'lucide-react'
 import { useFileSystemStore } from '@/store/useFileSystemStore'
 import { useAppIntent } from '@/store/useAppIntent'
 import { getExtension } from '@/lib/fileTypes'
-import { pathString, nodeCategory, type FSNode } from '@/lib/fs'
+import { nodeCategory, type FSNode } from '@/lib/fs'
 
 type Mode = 'plain' | 'rich'
 
@@ -122,46 +113,79 @@ export default function TextEdit() {
   )
 
   return (
-    <div className="flex h-full w-full flex-col" onClick={() => setOpenMenu(false)}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}
+      onClick={() => setOpenMenu(false)}
+    >
       {/* Toolbar */}
-      <div className="flex h-11 shrink-0 items-center gap-1 border-b border-[var(--color-window-border)] bg-[var(--color-window-titlebar)] px-3">
-        <TBtn onClick={newDoc} label="New">
-          <FilePlus size={17} />
-        </TBtn>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          height: 32,
+          flexShrink: 0,
+          background: '#c0c0c0',
+          borderBottom: '2px solid #808080',
+          padding: '0 4px',
+        }}
+      >
+        <W95AppBtn onClick={newDoc} label="New">New</W95AppBtn>
 
-        <div className="relative">
-          <TBtn
-            onClick={(e) => {
-              e.stopPropagation()
-              setOpenMenu((v) => !v)
-            }}
+        {/* Open with dropdown */}
+        <div style={{ position: 'relative' }}>
+          <W95AppBtn
+            onClick={(e) => { e.stopPropagation(); setOpenMenu((v) => !v) }}
             label="Open"
           >
-            <FolderOpen size={17} />
-          </TBtn>
+            Open ▾
+          </W95AppBtn>
           {openMenu && (
             <div
-              className="glass absolute left-0 top-9 z-50 max-h-72 w-64 overflow-auto rounded-lg py-1 text-[13px] shadow-xl"
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                zIndex: 9999,
+                background: '#c0c0c0',
+                borderStyle: 'solid',
+                borderWidth: 2,
+                borderColor: '#ffffff #404040 #404040 #ffffff',
+                boxShadow: '2px 2px 0 #000',
+                minWidth: 200,
+                maxHeight: 220,
+                overflowY: 'auto',
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               {openableFiles.length === 0 ? (
-                <p className="px-3 py-2 text-[var(--color-text-tertiary)]">
+                <p style={{ padding: '6px 12px', fontSize: 12, color: '#808080', fontFamily: 'Arial, sans-serif' }}>
                   No files
                 </p>
               ) : (
                 openableFiles.map((n) => (
                   <button
                     key={n.id}
-                    onClick={() => {
-                      loadFile(n)
-                      setOpenMenu(false)
+                    onClick={() => { loadFile(n); setOpenMenu(false) }}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '3px 12px',
+                      textAlign: 'left',
+                      border: 'none',
+                      background: 'transparent',
+                      fontSize: 12,
+                      fontFamily: 'Arial, sans-serif',
+                      color: '#000000',
+                      cursor: 'default',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
-                    className="flex w-full flex-col px-3 py-1.5 text-left hover:bg-[var(--color-accent)] hover:text-white"
+                    onMouseEnter={(e) => { (e.currentTarget).style.background = '#000080'; (e.currentTarget).style.color = '#fff' }}
+                    onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; (e.currentTarget).style.color = '#000' }}
                   >
-                    <span className="truncate">{n.name}</span>
-                    <span className="truncate text-[11px] text-[var(--color-text-tertiary)]">
-                      {pathString(nodes, n.id)}
-                    </span>
+                    {n.name}
                   </button>
                 ))
               )}
@@ -169,34 +193,23 @@ export default function TextEdit() {
           )}
         </div>
 
-        <TBtn onClick={save} label="Save">
-          <Save size={17} />
-        </TBtn>
+        <W95AppBtn onClick={save} label="Save">Save</W95AppBtn>
 
-        <div className="mx-1 h-5 w-px bg-[var(--color-window-border)]" />
+        {/* Divider */}
+        <div style={{ width: 2, height: 18, borderLeft: '1px solid #808080', borderRight: '1px solid #ffffff', margin: '0 3px', flexShrink: 0 }} />
 
-        <TBtn onClick={toggleMode} active={mode === 'rich'} label="Rich text">
-          <Type size={17} />
-        </TBtn>
+        <W95AppBtn onClick={toggleMode} label="Rich text" active={mode === 'rich'}>Rich</W95AppBtn>
         {mode === 'rich' && (
           <>
-            <TBtn onClick={() => exec('bold')} label="Bold">
-              <Bold size={16} />
-            </TBtn>
-            <TBtn onClick={() => exec('italic')} label="Italic">
-              <Italic size={16} />
-            </TBtn>
-            <TBtn onClick={() => exec('underline')} label="Underline">
-              <Underline size={16} />
-            </TBtn>
+            <W95AppBtn onClick={() => exec('bold')} label="Bold">B</W95AppBtn>
+            <W95AppBtn onClick={() => exec('italic')} label="Italic" style={{ fontStyle: 'italic' }}>I</W95AppBtn>
+            <W95AppBtn onClick={() => exec('underline')} label="Underline" style={{ textDecoration: 'underline' }}>U</W95AppBtn>
           </>
         )}
 
-        <span className="ml-auto flex items-center gap-1.5 truncate text-[12px] text-[var(--color-text-secondary)]">
-          {doc.dirty && (
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-text-secondary)]" />
-          )}
-          {doc.name}
+        {/* Filename right-aligned */}
+        <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'Arial, sans-serif', color: '#000000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>
+          {doc.dirty && '● '}{doc.name}
         </span>
       </div>
 
@@ -207,7 +220,19 @@ export default function TextEdit() {
           onChange={(e) => setText(e.target.value)}
           spellCheck={false}
           placeholder="Start typing…"
-          className="min-h-0 flex-1 resize-none bg-transparent p-4 font-mono text-[14px] leading-relaxed text-[var(--color-text-primary)] outline-none"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            resize: 'none',
+            background: '#ffffff',
+            padding: 12,
+            fontFamily: "'Courier New', monospace",
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: '#000000',
+            border: 'none',
+            outline: 'none',
+          }}
         />
       ) : (
         <div
@@ -221,34 +246,57 @@ export default function TextEdit() {
               dirty: true,
             }))
           }
-          className="min-h-0 flex-1 overflow-auto p-4 text-[14px] leading-relaxed text-[var(--color-text-primary)] outline-none"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'auto',
+            background: '#ffffff',
+            padding: 12,
+            fontFamily: "'Courier New', monospace",
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: '#000000',
+            outline: 'none',
+          }}
         />
       )}
     </div>
   )
 }
 
-function TBtn({
+function W95AppBtn({
   children,
   onClick,
   label,
   active,
+  style: extraStyle,
 }: {
   children: React.ReactNode
   onClick: (e: React.MouseEvent) => void
   label: string
   active?: boolean
+  style?: React.CSSProperties
 }) {
   return (
     <button
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`rounded-md p-1.5 ${
-        active
-          ? 'bg-white/15 text-[var(--color-text-primary)]'
-          : 'text-[var(--color-text-secondary)] hover:bg-white/10 hover:text-[var(--color-text-primary)]'
-      }`}
+      style={{
+        background: '#c0c0c0',
+        borderStyle: 'solid',
+        borderWidth: 2,
+        borderColor: active
+          ? '#808080 #ffffff #ffffff #808080'
+          : '#ffffff #808080 #808080 #ffffff',
+        padding: active ? '3px 7px 1px 9px' : '2px 8px',
+        fontSize: 12,
+        fontFamily: 'Arial, sans-serif',
+        color: '#000000',
+        cursor: 'default',
+        flexShrink: 0,
+        ...extraStyle,
+      }}
     >
       {children}
     </button>

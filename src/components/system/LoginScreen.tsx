@@ -1,121 +1,189 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Delete } from 'lucide-react'
 import { useSessionStore, SESSION_PIN } from '@/store/useSessionStore'
-import { getWallpaper } from '@/lib/wallpapers'
-import { useSystemStore } from '@/store/useSystemStore'
 import { Z } from '@/lib/constants'
 
-const PIN_LENGTH = 4
-
-/** Lock screen with a 4-digit PIN pad. Default PIN is shown as a hint. */
 export default function LoginScreen() {
   const unlock = useSessionStore((s) => s.unlock)
-  const wallpaperId = useSystemStore((s) => s.wallpaperId)
-  const wallpaper = getWallpaper(wallpaperId)
-
-  const [pin, setPin] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
   const [shake, setShake] = useState(false)
 
-  const submit = (value: string) => {
-    if (!unlock(value)) {
+  const submit = () => {
+    if (!unlock(password)) {
+      setError('The password is incorrect. Please try again.')
       setShake(true)
-      setTimeout(() => {
-        setShake(false)
-        setPin('')
-      }, 450)
+      setTimeout(() => { setShake(false); setPassword(''); setError('') }, 1500)
     }
   }
 
-  const addDigit = (d: string) => {
-    setPin((cur) => {
-      if (cur.length >= PIN_LENGTH) return cur
-      const next = cur + d
-      if (next.length === PIN_LENGTH) submit(next)
-      return next
-    })
-  }
-
-  const backspace = () => setPin((cur) => cur.slice(0, -1))
-
-  // Physical keyboard support.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key >= '0' && e.key <= '9') addDigit(e.key)
-      else if (e.key === 'Backspace') backspace()
+      if (e.key === 'Enter') submit()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [password])
 
   return (
     <div
-      className="fixed inset-0 flex flex-col items-center justify-center"
-      style={{ zIndex: Z.loginScreen, background: wallpaper.gradient }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#008080',
+        zIndex: Z.loginScreen,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-xl" />
-
-      <motion.div
-        animate={shake ? { x: [0, -10, 10, -8, 8, 0] } : { x: 0 }}
-        transition={{ duration: 0.45 }}
-        className="relative flex flex-col items-center"
+      {/* Win95 dialog box */}
+      <div
+        style={{
+          background: '#c0c0c0',
+          borderStyle: 'solid',
+          borderWidth: 3,
+          borderColor: '#ffffff #404040 #404040 #ffffff',
+          boxShadow: '4px 4px 0 #000000',
+          width: 340,
+          transform: shake ? 'translateX(-6px)' : 'translateX(0)',
+          transition: shake ? 'none' : 'transform 0.05s',
+        }}
       >
-        {/* Avatar */}
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-4xl font-semibold text-white shadow-xl">
-          W
+        {/* Dialog titlebar */}
+        <div style={{
+          background: 'linear-gradient(90deg, #000080 0%, #1084d0 100%)',
+          padding: '4px 8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          color: '#ffffff',
+          fontSize: 12,
+          fontWeight: 'bold',
+          fontFamily: 'Arial, sans-serif',
+        }}>
+          {/* Tiny shield icon in titlebar */}
+          <svg width="14" height="14" viewBox="0 0 14 14">
+            <path d="M7,1 L13,3.5 L13,8 Q13,12 7,13.5 Q1,12 1,8 L1,3.5 Z" fill="#c8a000" stroke="#ffffff" strokeWidth="0.5" />
+            <circle cx="7" cy="8" r="2.5" fill="#ffffff" />
+          </svg>
+          JPD CrimeOS — Begin Logon
         </div>
-        <p className="mt-3 text-[17px] font-medium text-white">WebOS User</p>
 
-        {/* PIN dots */}
-        <div className="mt-6 flex gap-3">
-          {Array.from({ length: PIN_LENGTH }).map((_, i) => (
-            <span
-              key={i}
-              className={`h-3.5 w-3.5 rounded-full border border-white/60 ${
-                i < pin.length ? 'bg-white' : 'bg-transparent'
-              }`}
+        {/* Dialog body */}
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Badge + welcome text */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <LoginBadge />
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 'bold', fontFamily: 'Arial, sans-serif', color: '#000000', marginBottom: 4 }}>
+                Jacksonville Police Department
+              </p>
+              <p style={{ fontSize: 11, fontFamily: 'Arial, sans-serif', color: '#444444' }}>
+                Municipal Database System
+              </p>
+              <p style={{ fontSize: 10, fontFamily: 'Arial, sans-serif', color: '#808080', marginTop: 4 }}>
+                Authorized personnel only.
+              </p>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: 0, borderTop: '1px solid #808080', borderBottom: '1px solid #ffffff' }} />
+
+          {/* Username row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={{ fontSize: 12, fontFamily: 'Arial, sans-serif', color: '#000000', width: 80, flexShrink: 0 }}>
+              User name:
+            </label>
+            <input
+              readOnly
+              value="Detective"
+              style={{
+                flex: 1, height: 22,
+                background: '#c0c0c0',
+                borderStyle: 'solid', borderWidth: 2,
+                borderColor: '#808080 #ffffff #ffffff #808080',
+                padding: '0 6px', fontSize: 12,
+                fontFamily: 'Arial, sans-serif', color: '#444444',
+                outline: 'none',
+              }}
             />
-          ))}
-        </div>
+          </div>
 
-        {/* Keypad */}
-        <div className="mt-7 grid grid-cols-3 gap-3">
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-            <PadKey key={d} onClick={() => addDigit(d)}>
-              {d}
-            </PadKey>
-          ))}
-          <span />
-          <PadKey onClick={() => addDigit('0')}>0</PadKey>
-          <PadKey onClick={backspace} aria-label="Delete">
-            <Delete size={20} />
-          </PadKey>
-        </div>
+          {/* Password row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={{ fontSize: 12, fontFamily: 'Arial, sans-serif', color: '#000000', width: 80, flexShrink: 0 }}>
+              Password:
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoFocus
+              style={{
+                flex: 1, height: 22,
+                background: '#ffffff',
+                borderStyle: 'solid', borderWidth: 2,
+                borderColor: '#808080 #ffffff #ffffff #808080',
+                padding: '0 6px', fontSize: 12,
+                fontFamily: 'Arial, sans-serif', color: '#000000',
+                outline: 'none',
+              }}
+            />
+          </div>
 
-        <p className="mt-6 text-[12px] text-white/60">
-          Hint: PIN is {SESSION_PIN}
-        </p>
-      </motion.div>
+          {/* Error message */}
+          {error && (
+            <p style={{ fontSize: 11, fontFamily: 'Arial, sans-serif', color: '#cc0000', margin: 0 }}>
+              ⚠ {error}
+            </p>
+          )}
+
+          {/* Hint */}
+          <p style={{ fontSize: 10, fontFamily: 'Arial, sans-serif', color: '#808080', margin: 0 }}>
+            Hint: PIN is {SESSION_PIN}
+          </p>
+
+          {/* Buttons */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+            <LoginBtn onClick={submit}>OK</LoginBtn>
+            <LoginBtn onClick={() => setPassword('')}>Cancel</LoginBtn>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
-function PadKey({
-  children,
-  onClick,
-  ...rest
-}: {
-  children: React.ReactNode
-  onClick: () => void
-} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+function LoginBadge() {
+  return (
+    <svg width="52" height="58" viewBox="0 0 100 110" aria-label="JPD Badge" style={{ flexShrink: 0 }}>
+      <path d="M50,4 L90,20 L90,60 Q90,90 50,106 Q10,90 10,60 L10,20 Z" fill="#000080" stroke="#c0c0c0" strokeWidth="3" />
+      <path d="M50,12 L82,26 L82,60 Q82,84 50,98 Q18,84 18,60 L18,26 Z" fill="none" stroke="#aaaaff" strokeWidth="1.5" />
+      <circle cx="50" cy="55" r="14" fill="#c8a000" stroke="#ffdd44" strokeWidth="1" />
+      <polygon points="50,41 53,51 64,51 55,58 58,68 50,62 42,68 45,58 36,51 47,51" fill="#ffffff" />
+      <text x="50" y="33" textAnchor="middle" fill="#ffffff" fontSize="10" fontFamily="Arial" fontWeight="bold" letterSpacing="3">JPD</text>
+      <text x="50" y="82" textAnchor="middle" fill="#ffffff" fontSize="7" fontFamily="Arial" letterSpacing="2">POLICE</text>
+      <text x="50" y="92" textAnchor="middle" fill="#aaaaff" fontSize="5.5" fontFamily="Arial" letterSpacing="1">JACKSONVILLE</text>
+    </svg>
+  )
+}
+
+function LoginBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-2xl font-light text-white backdrop-blur transition-colors hover:bg-white/20"
-      {...rest}
+      style={{
+        background: '#c0c0c0',
+        borderStyle: 'solid', borderWidth: 2,
+        borderColor: '#ffffff #404040 #404040 #ffffff',
+        padding: '3px 20px',
+        fontSize: 12, fontFamily: 'Arial, sans-serif',
+        color: '#000000', cursor: 'default', minWidth: 72,
+      }}
     >
       {children}
     </button>

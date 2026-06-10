@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSystemStore } from '@/store/useSystemStore'
 import { useUIStore } from '@/store/useUIStore'
 import { ACCENT_COLORS } from '@/lib/constants'
@@ -18,6 +18,14 @@ export interface ContextMenuState {
   y: number
 }
 
+export interface SelectionBox {
+  startX: number
+  startY: number
+  currentX: number
+  currentY: number
+  active: boolean
+}
+
 /**
  * Root orchestrator for the WebOS shell. Owns:
  *  - theme + accent application to the document root
@@ -32,6 +40,8 @@ export default function Desktop() {
 
   const [mounted, setMounted] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const [selection, setSelection] = useState<SelectionBox | null>(null)
+  const desktopRef = useRef<HTMLElement>(null)
 
   useEffect(() => setMounted(true), [])
 
@@ -63,6 +73,42 @@ export default function Desktop() {
     closeAllPopovers()
   }
 
+  // ---- Rubber-band (marquee) selection ----------------------------------
+  // Only begins on a left-press that lands on the desktop background itself or
+  // the wallpaper layer. Inclusion-based on purpose: an exclusion list would
+  // miss the many interactive overlays mounted under <main> (Start Menu,
+  // Spotlight, Control Center, Notifications, context menu) — pressing one of
+  // those would otherwise start a marquee and pointer-capture the click.
+  const onDesktopPointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.button !== 0) return
+    const onBackground =
+      e.target === e.currentTarget ||
+      !!(e.target as HTMLElement).closest('[data-wallpaper]')
+    if (!onBackground) return
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    closeContextMenu()
+    setSelection({ startX: x, startY: y, currentX: x, currentY: y, active: true })
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const onDesktopPointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (!selection?.active) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    setSelection((s) =>
+      s
+        ? { ...s, currentX: e.clientX - rect.left, currentY: e.clientY - rect.top }
+        : null
+    )
+  }
+
+  const onDesktopPointerUp = () => {
+    setSelection(null)
+  }
+
   // Avoid rendering persisted-state-dependent UI until mounted to prevent
   // hydration mismatch between server defaults and client localStorage.
   if (!mounted) {
@@ -71,12 +117,16 @@ export default function Desktop() {
 
   return (
     <main
+      ref={desktopRef}
       className="relative h-full w-full overflow-hidden bg-[var(--color-desktop-bg)]"
       onContextMenu={handleContextMenu}
       onClick={handleDesktopClick}
+      onPointerDown={onDesktopPointerDown}
+      onPointerMove={onDesktopPointerMove}
+      onPointerUp={onDesktopPointerUp}
     >
       <Wallpaper />
-      <DesktopIcons />
+      <DesktopIcons selectionBox={selection} />
       <WindowLayer />
       <Taskbar />
 
@@ -87,6 +137,30 @@ export default function Desktop() {
           onClose={closeContextMenu}
         />
       )}
+
+      {selection?.active &&
+        (() => {
+          const x = Math.min(selection.startX, selection.currentX)
+          const y = Math.min(selection.startY, selection.currentY)
+          const w = Math.abs(selection.currentX - selection.startX)
+          const h = Math.abs(selection.currentY - selection.startY)
+          if (w < 3 && h < 3) return null
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                left: x,
+                top: y,
+                width: w,
+                height: h,
+                border: '1px dashed #000080',
+                background: 'rgba(0, 0, 128, 0.08)',
+                pointerEvents: 'none',
+                zIndex: 9998,
+              }}
+            />
+          )
+        })()}
 
       <StateSync />
       <SystemLayer />

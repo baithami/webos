@@ -1,31 +1,16 @@
 'use client'
 
-import {
-  Home,
-  Monitor,
-  FileText,
-  Download,
-  Image as ImageIcon,
-  Music,
-  Film,
-  ChevronLeft,
-  ChevronRight,
-  LayoutGrid,
-  List as ListIcon,
-  Columns3,
-  FolderPlus,
-} from 'lucide-react'
 import { ROOT_ID } from '@/lib/fs'
 import type { ViewMode } from './shared'
 
-const FAVORITES: { id: string; label: string; icon: typeof Home }[] = [
-  { id: ROOT_ID, label: 'Home', icon: Home },
-  { id: 'desktop', label: 'Desktop', icon: Monitor },
-  { id: 'documents', label: 'Documents', icon: FileText },
-  { id: 'downloads', label: 'Downloads', icon: Download },
-  { id: 'pictures', label: 'Pictures', icon: ImageIcon },
-  { id: 'music', label: 'Music', icon: Music },
-  { id: 'movies', label: 'Movies', icon: Film },
+const FAVORITES: { id: string; label: string }[] = [
+  { id: ROOT_ID, label: 'Home' },
+  { id: 'desktop', label: 'Desktop' },
+  { id: 'documents', label: 'Documents' },
+  { id: 'downloads', label: 'Downloads' },
+  { id: 'pictures', label: 'Pictures' },
+  { id: 'music', label: 'Music' },
+  { id: 'movies', label: 'Movies' },
 ]
 
 export function Sidebar({
@@ -36,29 +21,82 @@ export function Sidebar({
   onNavigate: (id: string) => void
 }) {
   return (
-    <aside className="h-full w-44 shrink-0 overflow-auto bg-[var(--color-sidebar-bg)] px-2 py-3">
-      <p className="px-2 pb-1 text-[11px] font-semibold uppercase text-[var(--color-text-tertiary)]">
+    <aside
+      style={{
+        width: 160,
+        flexShrink: 0,
+        height: '100%',
+        overflowY: 'auto',
+        background: '#c0c0c0',
+        borderRight: '2px solid',
+        borderRightColor: '#808080',
+        paddingTop: 4,
+        paddingBottom: 4,
+      }}
+    >
+      <p
+        style={{
+          padding: '2px 8px 4px',
+          fontSize: 11,
+          fontWeight: 'bold',
+          fontFamily: 'Arial, sans-serif',
+          color: '#000000',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+        }}
+      >
         Favorites
       </p>
       {FAVORITES.map((f) => {
-        const Icon = f.icon
         const active = currentId === f.id
         return (
           <button
             key={f.id}
             onClick={() => onNavigate(f.id)}
-            className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-[13px] ${
-              active
-                ? 'bg-[var(--color-sidebar-active)] text-[var(--color-text-primary)]'
-                : 'text-[var(--color-text-secondary)] hover:bg-white/5'
-            }`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              width: '100%',
+              padding: '3px 8px',
+              fontSize: 12,
+              fontFamily: 'Arial, sans-serif',
+              textAlign: 'left',
+              border: 'none',
+              cursor: 'default',
+              background: active ? '#000080' : 'transparent',
+              color: active ? '#ffffff' : '#000000',
+            }}
           >
-            <Icon size={15} className="text-[var(--color-accent)]" />
-            <span className="truncate">{f.label}</span>
+            <W95SidebarIcon category={f.id} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {f.label}
+            </span>
           </button>
         )
       })}
     </aside>
+  )
+}
+
+/** Small Win95-style icon for the sidebar — a house for Home, a folder otherwise. */
+function W95SidebarIcon({ category }: { category: string }) {
+  const isHome = category === ROOT_ID
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style={{ flexShrink: 0 }}>
+      {isHome ? (
+        <polygon
+          points="8,2 14,8 12,8 12,14 10,14 10,10 6,10 6,14 4,14 4,8 2,8"
+          fill="#000080"
+          stroke="none"
+        />
+      ) : (
+        <>
+          <rect x="1" y="5" width="14" height="10" fill="#c8a000" stroke="#000000" strokeWidth="0.5" />
+          <path d="M1,5 L1,4 L5,4 L6,5" fill="#c8a000" stroke="#000000" strokeWidth="0.5" />
+        </>
+      )}
+    </svg>
   )
 }
 
@@ -82,48 +120,93 @@ export function Toolbar({
   onNewFolder: () => void
 }) {
   return (
-    <div className="flex h-11 shrink-0 items-center gap-2 border-b border-[var(--color-window-border)] bg-[var(--color-window-titlebar)] px-3">
-      <NavBtn disabled={!canBack} onClick={onBack} label="Back">
-        <ChevronLeft size={18} />
-      </NavBtn>
-      <NavBtn disabled={!canForward} onClick={onForward} label="Forward">
-        <ChevronRight size={18} />
-      </NavBtn>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        height: 36,
+        flexShrink: 0,
+        background: '#c0c0c0',
+        borderBottom: '2px solid',
+        borderBottomColor: '#808080',
+        padding: '0 6px',
+      }}
+    >
+      {/* Back / Forward */}
+      <W95ToolbarBtn disabled={!canBack} onClick={onBack} label="Back">
+        {'<'}
+      </W95ToolbarBtn>
+      <W95ToolbarBtn disabled={!canForward} onClick={onForward} label="Forward">
+        {'>'}
+      </W95ToolbarBtn>
 
-      <span className="ml-1 truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
+      <ToolbarDivider />
+
+      {/* Current folder title */}
+      <span
+        style={{
+          flex: 1,
+          fontSize: 12,
+          fontWeight: 'bold',
+          fontFamily: 'Arial, sans-serif',
+          color: '#000000',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          paddingLeft: 4,
+        }}
+      >
         {title}
       </span>
 
-      <div className="ml-auto flex items-center gap-1 rounded-md bg-black/20 p-0.5">
-        <SegBtn active={viewMode === 'icon'} onClick={() => onViewMode('icon')} label="Icons">
-          <LayoutGrid size={15} />
-        </SegBtn>
-        <SegBtn active={viewMode === 'list'} onClick={() => onViewMode('list')} label="List">
-          <ListIcon size={15} />
-        </SegBtn>
-        <SegBtn active={viewMode === 'column'} onClick={() => onViewMode('column')} label="Columns">
-          <Columns3 size={15} />
-        </SegBtn>
-      </div>
+      <ToolbarDivider />
 
-      <button
-        onClick={onNewFolder}
-        aria-label="New Folder"
-        className="rounded-md p-1.5 text-[var(--color-text-secondary)] hover:bg-white/10 hover:text-[var(--color-text-primary)]"
-      >
-        <FolderPlus size={17} />
-      </button>
+      {/* View mode buttons */}
+      <W95ToolbarBtn active={viewMode === 'icon'} onClick={() => onViewMode('icon')} label="Icon view">
+        Icons
+      </W95ToolbarBtn>
+      <W95ToolbarBtn active={viewMode === 'list'} onClick={() => onViewMode('list')} label="List view">
+        List
+      </W95ToolbarBtn>
+      <W95ToolbarBtn active={viewMode === 'column'} onClick={() => onViewMode('column')} label="Details view">
+        Details
+      </W95ToolbarBtn>
+
+      <ToolbarDivider />
+
+      {/* New Folder */}
+      <W95ToolbarBtn onClick={onNewFolder} label="New Folder">
+        New Folder
+      </W95ToolbarBtn>
     </div>
   )
 }
 
-function NavBtn({
-  disabled,
+function ToolbarDivider() {
+  return (
+    <div
+      style={{
+        width: 2,
+        height: 20,
+        borderLeft: '1px solid #808080',
+        borderRight: '1px solid #ffffff',
+        margin: '0 2px',
+        flexShrink: 0,
+      }}
+    />
+  )
+}
+
+function W95ToolbarBtn({
+  disabled = false,
+  active = false,
   onClick,
   label,
   children,
 }: {
-  disabled: boolean
+  disabled?: boolean
+  active?: boolean
   onClick: () => void
   label: string
   children: React.ReactNode
@@ -133,33 +216,23 @@ function NavBtn({
       disabled={disabled}
       onClick={onClick}
       aria-label={label}
-      className="rounded-md p-1 text-[var(--color-text-secondary)] enabled:hover:bg-white/10 enabled:hover:text-[var(--color-text-primary)] disabled:opacity-30"
-    >
-      {children}
-    </button>
-  )
-}
-
-function SegBtn({
-  active,
-  onClick,
-  label,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      className={`rounded p-1 ${
-        active
-          ? 'bg-white/15 text-[var(--color-text-primary)]'
-          : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
-      }`}
+      style={{
+        background: '#c0c0c0',
+        borderStyle: 'solid',
+        borderWidth: 2,
+        borderColor: active
+          ? '#808080 #ffffff #ffffff #808080'
+          : disabled
+          ? '#c0c0c0 #c0c0c0 #c0c0c0 #c0c0c0'
+          : '#ffffff #808080 #808080 #ffffff',
+        padding: active ? '3px 7px 1px 9px' : '2px 8px',
+        fontSize: 11,
+        fontFamily: 'Arial, sans-serif',
+        color: disabled ? '#808080' : '#000000',
+        cursor: 'default',
+        flexShrink: 0,
+        minWidth: 24,
+      }}
     >
       {children}
     </button>
@@ -196,33 +269,47 @@ export function FinderContextMenu({
   }
   return (
     <div
-      className="glass fixed z-50 min-w-44 rounded-lg py-1 text-[13px] text-[var(--color-text-primary)] shadow-xl"
-      style={{ left: menu.x, top: menu.y }}
+      style={{
+        position: 'fixed',
+        left: menu.x,
+        top: menu.y,
+        zIndex: 9999,
+        background: '#c0c0c0',
+        borderStyle: 'solid',
+        borderWidth: 2,
+        borderColor: '#ffffff #808080 #808080 #ffffff',
+        boxShadow: '2px 2px 0 #000000',
+        minWidth: 140,
+        paddingTop: 2,
+        paddingBottom: 2,
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 12,
+      }}
       onClick={(e) => e.stopPropagation()}
     >
       {onNode ? (
         <>
-          <Item onClick={run(onOpen)}>Open</Item>
-          <Item onClick={run(onRename)}>Rename</Item>
-          <Divider />
-          <Item danger onClick={run(onDelete)}>
-            Move to Trash
-          </Item>
+          <CtxItem onClick={run(onOpen)}>Open</CtxItem>
+          <CtxItem onClick={run(onRename)}>Rename</CtxItem>
+          <CtxDivider />
+          <CtxItem onClick={run(onDelete)} danger>
+            Delete
+          </CtxItem>
         </>
       ) : (
         <>
-          <Item onClick={run(onNewFolder)}>New Folder</Item>
-          <Item onClick={run(onNewFile)}>New Text File</Item>
+          <CtxItem onClick={run(onNewFolder)}>New Folder</CtxItem>
+          <CtxItem onClick={run(onNewFile)}>New Text File</CtxItem>
         </>
       )}
     </div>
   )
 }
 
-function Item({
+function CtxItem({
   children,
   onClick,
-  danger,
+  danger = false,
 }: {
   children: React.ReactNode
   onClick: () => void
@@ -231,15 +318,42 @@ function Item({
   return (
     <button
       onClick={onClick}
-      className={`w-full px-3 py-1.5 text-left hover:bg-[var(--color-accent)] hover:text-white ${
-        danger ? 'text-[var(--color-close)]' : ''
-      }`}
+      style={{
+        display: 'block',
+        width: '100%',
+        padding: '3px 20px',
+        textAlign: 'left',
+        border: 'none',
+        background: 'transparent',
+        fontSize: 12,
+        fontFamily: 'Arial, sans-serif',
+        color: danger ? '#cc0000' : '#000000',
+        cursor: 'default',
+        whiteSpace: 'nowrap',
+      }}
+      onMouseEnter={(e) => {
+        ;(e.currentTarget as HTMLButtonElement).style.background = '#000080'
+        ;(e.currentTarget as HTMLButtonElement).style.color = '#ffffff'
+      }}
+      onMouseLeave={(e) => {
+        ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+        ;(e.currentTarget as HTMLButtonElement).style.color = danger ? '#cc0000' : '#000000'
+      }}
     >
       {children}
     </button>
   )
 }
 
-function Divider() {
-  return <div className="my-1 h-px bg-[var(--color-window-border)]" />
+function CtxDivider() {
+  return (
+    <div
+      style={{
+        height: 0,
+        borderTop: '1px solid #808080',
+        borderBottom: '1px solid #ffffff',
+        margin: '3px 4px',
+      }}
+    />
+  )
 }

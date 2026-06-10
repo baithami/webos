@@ -140,8 +140,14 @@ export default function Window({ win, zIndex, active }: WindowProps) {
     target.addEventListener('pointerup', onUp)
   }
 
+  // Apps that paint their own full-bleed dark background get no inset border —
+  // the Win95 sunken margin would leave a gray gap around the dark content.
+  const DARK_APPS = new Set(['sql-terminal'])
+  const isDark = DARK_APPS.has(win.appId)
+
   return (
     <motion.div
+      data-window="true"
       role="dialog"
       aria-label={win.title}
       onPointerDownCapture={() => focus(win.id)}
@@ -176,8 +182,23 @@ export default function Window({ win, zIndex, active }: WindowProps) {
         />
       </div>
 
-      {/* App body — apps own their own padding/scroll. */}
-      <div className="min-h-0 flex-1 overflow-hidden">
+      {/* App body — apps own their own padding/scroll. The Win95 sunken inner
+          border insets content inside the gray frame. Dark full-bleed apps (the
+          SQL Terminal) instead fill the body edge-to-edge with their own dark
+          color so no gray frame bleeds around the content. */}
+      <div
+        className="min-h-0 flex-1 overflow-hidden"
+        style={
+          isDark
+            ? { background: '#0a0f0a' }
+            : {
+                margin: 4,
+                borderStyle: 'solid',
+                borderWidth: 2,
+                borderColor: '#808080 #ffffff #ffffff #808080',
+              }
+        }
+      >
         <AppContent appId={win.appId} />
       </div>
 

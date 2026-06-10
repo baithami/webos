@@ -50,7 +50,20 @@ export function IconView(props: ViewProps) {
   if (items.length === 0) return <EmptyFolder />
   return (
     <div
-      className="flex h-full w-full flex-wrap content-start gap-2 overflow-auto p-4"
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignContent: 'flex-start',
+        gap: 4,
+        height: '100%',
+        width: '100%',
+        overflowY: 'auto',
+        padding: 8,
+        background: '#ffffff',
+        borderStyle: 'solid',
+        borderWidth: 2,
+        borderColor: '#808080 #ffffff #ffffff #808080',
+      }}
       onClick={() => props.onSelect(null)}
     >
       {items.map((node) => (
@@ -83,9 +96,19 @@ function IconTile({
       }}
       onDoubleClick={() => onOpen(node)}
       onContextMenu={(e) => onContextMenu(e, node)}
-      className={`flex w-24 flex-col items-center gap-1 rounded-lg p-2 text-center ${
-        selected ? 'bg-[var(--color-accent)]/25' : 'hover:bg-white/5'
-      } ${hover ? 'ring-2 ring-[var(--color-accent)]' : ''}`}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 4,
+        width: 80,
+        padding: 8,
+        textAlign: 'center',
+        background: selected ? '#000080' : 'transparent',
+        outline: hover ? '2px solid #000080' : 'none',
+        cursor: 'default',
+        border: 'none',
+      }}
     >
       <FileIcon node={node} size={44} />
       <div className="w-full">
@@ -96,7 +119,18 @@ function IconTile({
             onCancel={onCancelRename}
           />
         ) : (
-          <span className="line-clamp-2 break-words text-[12px] text-[var(--color-text-primary)]">
+          <span
+            style={{
+              fontSize: 12,
+              fontFamily: 'Arial, sans-serif',
+              color: selected ? '#ffffff' : '#000000',
+              wordBreak: 'break-word',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
             {node.name}
           </span>
         )}
@@ -111,13 +145,39 @@ export function ListView(props: ViewProps) {
   const { items } = props
   if (items.length === 0) return <EmptyFolder />
   return (
-    <div className="h-full w-full overflow-auto" onClick={() => props.onSelect(null)}>
+    <div
+      style={{
+        height: '100%',
+        width: '100%',
+        overflowY: 'auto',
+        background: '#ffffff',
+        borderStyle: 'solid',
+        borderWidth: 2,
+        borderColor: '#808080 #ffffff #ffffff #808080',
+      }}
+      onClick={() => props.onSelect(null)}
+    >
       <table className="w-full border-collapse text-[13px]">
-        <thead className="sticky top-0 bg-[var(--color-window-titlebar)] text-[var(--color-text-secondary)]">
+        <thead style={{ background: '#000080', color: '#ffffff', position: 'sticky', top: 0 }}>
           <tr>
-            <th className="px-3 py-1.5 text-left font-medium">Name</th>
-            <th className="w-28 px-3 py-1.5 text-left font-medium">Kind</th>
-            <th className="w-28 px-3 py-1.5 text-right font-medium">Size</th>
+            <th
+              className="px-3 py-1.5 text-left font-medium"
+              style={{ color: '#ffffff', fontFamily: 'Arial, sans-serif', fontSize: 12 }}
+            >
+              Name
+            </th>
+            <th
+              className="w-28 px-3 py-1.5 text-left font-medium"
+              style={{ color: '#ffffff', fontFamily: 'Arial, sans-serif', fontSize: 12 }}
+            >
+              Kind
+            </th>
+            <th
+              className="w-28 px-3 py-1.5 text-right font-medium"
+              style={{ color: '#ffffff', fontFamily: 'Arial, sans-serif', fontSize: 12 }}
+            >
+              Size
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -158,9 +218,9 @@ function ListRow({
       onContextMenu={(e) => onContextMenu(e, node)}
       className={`cursor-default ${
         selected
-          ? 'bg-[var(--color-accent)] text-white'
-          : 'hover:bg-white/5'
-      } ${hover ? 'outline outline-2 -outline-offset-2 outline-[var(--color-accent)]' : ''}`}
+          ? 'bg-[#000080] text-white'
+          : 'hover:bg-[#c8c8c8]'
+      } ${hover ? 'outline outline-2 -outline-offset-2 outline-[#000080]' : ''}`}
     >
       <td className="px-3 py-1.5">
         <div className="flex items-center gap-2">
@@ -218,23 +278,35 @@ export function ColumnView(props: ViewProps) {
                 Empty
               </p>
             ) : (
-              children.map((node) => (
-                <button
-                  key={node.id}
-                  onClick={() => select(depth, node)}
-                  onDoubleClick={() => node.type === 'file' && onOpen(node)}
-                  onContextMenu={(e) => onContextMenu(e, node)}
-                  className={`flex w-full items-center gap-2 px-2 py-1 text-left text-[13px] ${
-                    selectedNext === node.id || props.selectedId === node.id
-                      ? 'bg-[var(--color-accent)] text-white'
-                      : 'hover:bg-white/5'
-                  }`}
-                >
-                  <FileIcon node={node} size={16} />
-                  <span className="flex-1 truncate">{node.name}</span>
-                  {node.type === 'folder' && <span className="opacity-60">›</span>}
-                </button>
-              ))
+              children.map((node) => {
+                const isSel =
+                  selectedNext === node.id || props.selectedId === node.id
+                return (
+                  <button
+                    key={node.id}
+                    onClick={() => select(depth, node)}
+                    onDoubleClick={() => node.type === 'file' && onOpen(node)}
+                    onContextMenu={(e) => onContextMenu(e, node)}
+                    className="flex w-full items-center gap-2 px-2 py-1 text-left text-[13px]"
+                    style={{
+                      background: isSel ? '#000080' : 'transparent',
+                      color: isSel ? '#ffffff' : '#000000',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSel)
+                        (e.currentTarget as HTMLButtonElement).style.background = '#c8c8c8'
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSel)
+                        (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                    }}
+                  >
+                    <FileIcon node={node} size={16} />
+                    <span className="flex-1 truncate">{node.name}</span>
+                    {node.type === 'folder' && <span className="opacity-60">›</span>}
+                  </button>
+                )
+              })
             )}
           </div>
         )

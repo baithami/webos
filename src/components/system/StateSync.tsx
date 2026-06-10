@@ -65,6 +65,12 @@ async function saveState() {
 export default function StateSync() {
   // Load once on mount.
   useEffect(() => {
+    // One-time data wipe for v2 reskin — remove after first run.
+    if (!localStorage.getItem('webos-v2-reset-done')) {
+      localStorage.clear()
+      localStorage.setItem('webos-v2-reset-done', '1')
+    }
+
     let cancelled = false
     ;(async () => {
       let nodes: NodeMap | null = null

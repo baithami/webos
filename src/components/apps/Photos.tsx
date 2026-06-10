@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Upload,
-  RefreshCw,
   Trash2,
   X,
   ChevronLeft,
@@ -59,44 +57,35 @@ export default function Photos() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col bg-[var(--color-window-bg)]">
+    <div className="flex h-full w-full flex-col" style={{ background: '#c0c0c0' }}>
       {/* Toolbar */}
-      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--color-window-border)] bg-[var(--color-window-titlebar)] px-4">
-        <span className="text-[15px] font-semibold text-[var(--color-text-primary)]">
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        height: 32,
+        flexShrink: 0,
+        background: '#c0c0c0',
+        borderBottom: '2px solid #808080',
+        padding: '0 8px',
+      }}>
+        <span style={{ fontSize: 13, fontWeight: 'bold', fontFamily: 'Arial, sans-serif', color: '#000000' }}>
           Library
         </span>
-        <span className="text-[12px] text-[var(--color-text-tertiary)]">
+        <span style={{ fontSize: 11, fontFamily: 'Arial, sans-serif', color: '#444444' }}>
           {photos.length} {photos.length === 1 ? 'photo' : 'photos'}
         </span>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={refresh}
-            aria-label="Refresh"
-            className="rounded-md p-1.5 text-[var(--color-text-secondary)] hover:bg-white/10 hover:text-[var(--color-text-primary)]"
-          >
-            <RefreshCw size={16} />
-          </button>
-          <button
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-            className="flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[13px] font-medium text-white hover:brightness-110 disabled:opacity-60"
-          >
-            <Upload size={15} />
-            {busy ? 'Uploading…' : 'Add Photos'}
-          </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(e) => handleUpload(e.target.files)}
-          />
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <PhotosBtn onClick={refresh} label="Refresh">↻ Refresh</PhotosBtn>
+          <PhotosBtn onClick={() => inputRef.current?.click()} label="Add Photos" disabled={busy}>
+            {busy ? 'Uploading…' : '+ Add Photos'}
+          </PhotosBtn>
         </div>
+        <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={(e) => handleUpload(e.target.files)} />
       </div>
 
       {/* Grid */}
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div className="min-h-0 flex-1 overflow-auto p-4" style={{ background: '#c0c0c0' }}>
         {loading ? (
           <div className="flex h-full items-center justify-center text-[13px] text-[var(--color-text-tertiary)]">
             Loading…
@@ -117,7 +106,8 @@ export default function Photos() {
               <button
                 key={item.name}
                 onClick={() => setViewer(i)}
-                className="group relative aspect-square overflow-hidden rounded-lg bg-black/20 ring-1 ring-white/5"
+                className="group relative aspect-square overflow-hidden bg-black/20"
+                style={{ border: '2px solid #808080' }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -143,6 +133,40 @@ export default function Photos() {
         />
       )}
     </div>
+  )
+}
+
+function PhotosBtn({
+  children,
+  onClick,
+  label,
+  disabled = false,
+}: {
+  children: React.ReactNode
+  onClick: () => void
+  label: string
+  disabled?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      disabled={disabled}
+      style={{
+        background: '#c0c0c0',
+        borderStyle: 'solid',
+        borderWidth: 2,
+        borderColor: disabled ? '#c0c0c0' : '#ffffff #808080 #808080 #ffffff',
+        padding: '1px 8px',
+        fontSize: 11,
+        fontFamily: 'Arial, sans-serif',
+        color: disabled ? '#808080' : '#000000',
+        cursor: 'default',
+        height: 22,
+      }}
+    >
+      {children}
+    </button>
   )
 }
 
