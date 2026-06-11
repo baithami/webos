@@ -2,9 +2,15 @@ import { useFileSystemStore } from '@/store/useFileSystemStore'
 import { useCaseStore } from '@/store/useCaseStore'
 import type { GameCase } from './types'
 
+/** The desktop folder name for a case, e.g. "Case #0001 — The Missing Muffin". */
+function caseFolderName(gameCase: GameCase): string {
+  return `Case ${gameCase.id
+    .replace('case-', '#')
+    .replace(/(\d+)/, (n) => n.padStart(4, '0'))} — ${gameCase.title}`
+}
+
 /**
  * Creates a folder on the desktop for this case, if it doesn't already exist.
- * The folder name matches the format "Case #0001 — The Missing Muffin".
  * DesktopIcons.tsx automatically renders everything in the 'desktop' folder, so
  * no UI wiring is needed beyond writing the node here.
  */
@@ -18,9 +24,7 @@ export function createCaseDesktopIcon(gameCase: GameCase): void {
   // Safety check: the desktop folder must exist before we can write into it.
   if (!nodes['desktop']) return
 
-  const folderName = `Case ${gameCase.id
-    .replace('case-', '#')
-    .replace(/(\d+)/, (n) => n.padStart(4, '0'))} — ${gameCase.title}`
+  const folderName = caseFolderName(gameCase)
 
   // The file system persists server-side and can outlive the (localStorage)
   // desktopIconsCreated flag; skip if the folder is already on the desktop so we
@@ -37,27 +41,48 @@ export function createCaseDesktopIcon(gameCase: GameCase): void {
   markDesktopIconCreated(gameCase.id)
 }
 
+/** Find the case's desktop folder, creating it if absent. Returns its id, or null. */
+function ensureCaseFolder(gameCase: GameCase): string | null {
+  const { createNode, nodes } = useFileSystemStore.getState()
+  if (!nodes['desktop']) return null
+
+  const folderName = caseFolderName(gameCase)
+  const existing = Object.values(nodes).find(
+    (n) => n.parentId === 'desktop' && n.name === folderName
+  )
+  return existing ? existing.id : createNode('desktop', folderName, 'folder')
+}
+
 /**
- * Drops a plain-text briefing file on the desktop for this case (e.g.
- * "CASE-0001.txt"), openable in TextEdit. The case number is zero-padded to 4
- * digits to match the rest of the UI ("Case #0001"). Idempotent: skips if a
- * file with that name already exists on the desktop — the file system persists
- * server-side and can outlive any localStorage flag, so we never create deduped
- * duplicates ("CASE-0001 2.txt").
+ * Drops the case briefing as a plain-text file (e.g. "CASE-0001.txt") *inside*
+ * that case's desktop folder, openable in TextEdit. The case number is
+ * zero-padded to 4 digits to match the rest of the UI ("Case #0001").
+ * Idempotent: if the file is already in the folder it does nothing; if an older
+ * copy is sitting loose on the desktop (earlier builds put it there), it's moved
+ * into the folder rather than duplicated.
  */
 export function createCaseBriefingFile(gameCase: GameCase): void {
-  const { createNode, nodes } = useFileSystemStore.getState()
+  const folderId = ensureCaseFolder(gameCase)
+  if (!folderId) return
 
-  // The desktop folder must exist before we can write into it.
-  if (!nodes['desktop']) return
-
+  const { createNode, move, nodes } = useFileSystemStore.getState()
   const num = gameCase.id.replace(/\D/g, '').padStart(4, '0')
   const fileName = `CASE-${num}.txt`
 
-  const exists = Object.values(nodes).some(
-    (n) => n.parentId === 'desktop' && n.name === fileName
+  // Already filed in the case folder → nothing to do.
+  const inFolder = Object.values(nodes).some(
+    (n) => n.parentId === folderId && n.name === fileName
   )
-  if (exists) return
+  if (inFolder) return
 
-  createNode('desktop', fileName, 'file', gameCase.briefing)
+  // Relocate a stray copy left directly on the desktop by an earlier build.
+  const stray = Object.values(nodes).find(
+    (n) => n.parentId === 'desktop' && n.type === 'file' && n.name === fileName
+  )
+  if (stray) {
+    move(stray.id, folderId)
+    return
+  }
+
+  createNode(folderId, fileName, 'file', gameCase.briefing)
 }

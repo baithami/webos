@@ -217,7 +217,7 @@ function SchemaView({
                     </span>
                     <span
                       style={{
-                        color: '#808080',
+                        color: '#000000',
                         fontSize: 10,
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
