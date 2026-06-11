@@ -1,29 +1,57 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useCaseStore } from '@/store/useCaseStore'
 
-// A lined-notepad scratchpad for the player's working notes. Intentionally
-// breaks from the dark OS theme — cream paper, dark ink, ruled lines — while
-// the window chrome stays dark. Content persists to localStorage and auto-saves
-// 500ms after the last keystroke. No backend; this is per-device by design.
+// A lined-notepad scratchpad for the player's working notes — cream paper,
+// dark ink, ruled lines. Notes are keyed per case (detective-notes-<caseId>)
+// so switching cases never bleeds notes across investigations. Content
+// persists to localStorage and auto-saves 500ms after the last keystroke.
+// No backend; this is per-device by design.
 
-const STORAGE_KEY = 'detective-notes-case-001'
 const FALLBACK_STACK = "'Caveat', 'Comic Sans MS', cursive"
 
+/** 'case-001' → '#0001' */
+function caseNumber(id: string): string {
+  const n = id.replace(/\D/g, '')
+  return `#${n.padStart(4, '0')}`
+}
+
 export default function DetectiveNotes() {
+  const activeCaseId = useCaseStore((s) => s.activeCaseId)
+  const storageKey = `detective-notes-${activeCaseId}`
+
   const [text, setText] = useState('')
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The not-yet-written save, with the key it belongs to — so a case switch
+  // mid-debounce flushes to the OLD case's key, never the new one.
+  const pendingSave = useRef<{ key: string; value: string } | null>(null)
 
-  // Load persisted notes once on mount. (localStorage is client-only; this app
-  // is rendered with ssr:false so window is always available here.)
+  const flushSave = () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = null
+    if (pendingSave.current) {
+      try {
+        window.localStorage.setItem(pendingSave.current.key, pendingSave.current.value)
+      } catch {
+        /* ignore quota / availability errors */
+      }
+      pendingSave.current = null
+    }
+  }
+
+  // Load this case's notes; on case switch (or unmount) flush any pending save
+  // for the previous case first. (localStorage is client-only; this app is
+  // rendered with ssr:false so window is always available here.)
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem(STORAGE_KEY)
-      if (saved !== null) setText(saved)
+      setText(window.localStorage.getItem(storageKey) ?? '')
     } catch {
-      /* localStorage unavailable — degrade to in-memory only. */
+      setText('') /* localStorage unavailable — degrade to in-memory only. */
     }
-  }, [])
+    return flushSave
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey])
 
   // Inject the Caveat handwriting font once. Falls back to system cursive if
   // the network is unavailable.
@@ -40,22 +68,12 @@ export default function DetectiveNotes() {
 
   const onChange = (value: string) => {
     setText(value)
+    pendingSave.current = { key: storageKey, value }
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, value)
-      } catch {
-        /* ignore quota / availability errors */
-      }
-    }, 500)
+    saveTimer.current = setTimeout(flushSave, 500)
   }
 
-  // Flush any pending save on unmount so a quick close doesn't lose the tail.
-  useEffect(() => {
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-    }
-  }, [])
+  const stamp = caseNumber(activeCaseId)
 
   return (
     <div
@@ -71,7 +89,7 @@ export default function DetectiveNotes() {
           className="font-mono text-[11px] font-bold uppercase tracking-[0.2em]"
           style={{ color: 'var(--color-text-secondary)' }}
         >
-          Case Notes — #0001
+          Case Notes — {stamp}
         </span>
         <span
           className="font-mono text-[11px]"
@@ -108,7 +126,7 @@ export default function DetectiveNotes() {
           color: 'var(--color-text-tertiary)',
         }}
       >
-        Auto-saved • Case #0001
+        Auto-saved • Case {stamp}
       </footer>
     </div>
   )

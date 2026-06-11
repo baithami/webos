@@ -62,7 +62,13 @@ export default function SqlTerminal() {
 
   const caseId = activeCase?.id
 
-  // (Re)build the database whenever the active case changes.
+  // Bumped by the Rebuild button to re-run the DB-build effect below —
+  // belt-and-suspenders recovery in case anything ever corrupts the in-memory
+  // evidence DB. Reuses the effect's cancelled-flag lifecycle.
+  const [rebuildNonce, setRebuildNonce] = useState(0)
+
+  // (Re)build the database whenever the active case changes (or a rebuild is
+  // requested).
   useEffect(() => {
     if (!activeCase) return
     let cancelled = false
@@ -98,7 +104,7 @@ export default function SqlTerminal() {
       dbRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caseId])
+  }, [caseId, rebuildNonce])
 
   const getSql = useCallback((): string => {
     return viewRef.current?.state.doc.toString() ?? ''
@@ -210,13 +216,23 @@ export default function SqlTerminal() {
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex h-[30px] shrink-0 items-center justify-between border-b border-[#808080] bg-[#c0c0c0] px-2 text-[11px] uppercase tracking-widest text-[#444444]">
               <span>SQL QUERY — Ctrl+Enter to run</span>
-              <button
-                onClick={runQuery}
-                disabled={dbStatus !== 'ready'}
-                className={`${win95Btn} font-bold tracking-widest`}
-              >
-                ▶ RUN
-              </button>
+              <span className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setRebuildNonce((n) => n + 1)}
+                  disabled={dbStatus === 'loading'}
+                  title="Rebuild the evidence database from the case file"
+                  className={`${win95Btn} tracking-widest`}
+                >
+                  ⟲ REBUILD DB
+                </button>
+                <button
+                  onClick={runQuery}
+                  disabled={dbStatus !== 'ready'}
+                  className={`${win95Btn} font-bold tracking-widest`}
+                >
+                  ▶ RUN
+                </button>
+              </span>
             </div>
             <div ref={editorRef} className="min-h-0 flex-1 overflow-hidden" />
           </div>
