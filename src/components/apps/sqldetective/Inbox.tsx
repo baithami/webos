@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useWindowStore } from '@/store/useWindowStore'
 import { useCaseStore } from '@/store/useCaseStore'
-import { createCaseDesktopIcon } from '@/lib/sqldetective/desktopIcon'
+import { createCaseDesktopIcon, createCaseBriefingFile } from '@/lib/sqldetective/desktopIcon'
 import { CASES } from '@/lib/sqldetective/cases'
 import type { GameCase } from '@/lib/sqldetective/types'
 
@@ -63,6 +63,8 @@ export default function Inbox() {
     if (firstOpen && !desktopIconsCreated.includes(c.id)) {
       createCaseDesktopIcon(c)
     }
+    // Seed the briefing .txt onto the desktop (self-guards against duplicates).
+    createCaseBriefingFile(c)
   }
 
   return (

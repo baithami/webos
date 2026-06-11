@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useCaseStore } from '@/store/useCaseStore'
+import { useFileSystemStore } from '@/store/useFileSystemStore'
+import { createCaseBriefingFile } from '@/lib/sqldetective/desktopIcon'
 
 // Evidence document viewer. Reads the live active case from useCaseStore.
-// BRIEFING renders a scanned physical document (light paper, ruled lines, red
-// case stamp — the one place in the OS that intentionally inverts to a light
-// scheme); SCHEMA lists the case's evidence tables in the dark OS theme.
-
-const PHOSPHOR = '#7fbf7f'
-const PHOSPHOR_BRIGHT = '#b8ff6a'
+// BRIEFING renders the case file as a clean printed report (white page, black
+// monospace, sunken Win95 inset). SCHEMA lists the evidence tables as Win95
+// panels with navy header rows. Also seeds the case briefing as a desktop
+// .txt the first time a case becomes active (see desktopIcon.ts).
 
 type Tab = 'BRIEFING' | 'SCHEMA'
 
@@ -22,12 +22,24 @@ function caseNumber(id: string): string {
 export default function CaseFile() {
   const [tab, setTab] = useState<Tab>('BRIEFING')
   const activeCase = useCaseStore((s) => s.activeCase())
+  // Re-run seeding once the Desktop folder has hydrated from the server, so a
+  // case that's already active on first load still gets its briefing file.
+  const desktopReady = useFileSystemStore((s) => Boolean(s.nodes['desktop']))
+
+  useEffect(() => {
+    if (activeCase && desktopReady) createCaseBriefingFile(activeCase)
+  }, [activeCase, desktopReady])
 
   if (!activeCase) {
     return (
       <div
-        className="flex h-full w-full items-center justify-center font-mono text-[13px]"
-        style={{ background: 'var(--color-window-bg)', color: PHOSPHOR }}
+        className="flex h-full w-full items-center justify-center"
+        style={{
+          background: '#c0c0c0',
+          color: '#000000',
+          fontFamily: "'Courier New', monospace",
+          fontSize: 13,
+        }}
       >
         No active case. Open the Inbox to select a case.
       </div>
@@ -37,74 +49,78 @@ export default function CaseFile() {
   const stamp = caseNumber(activeCase.id)
 
   return (
-    <div
-      className="flex h-full w-full flex-col"
-      style={{ background: 'var(--color-window-bg)' }}
-    >
-      {/* Tab bar — OS glass style */}
+    <div className="flex h-full w-full flex-col" style={{ background: '#c0c0c0' }}>
+      {/* Win95 tab bar — active tab raised, bold, connected to the content. */}
       <div
-        className="glass flex shrink-0 gap-1 px-3 py-2"
-        style={{ borderBottom: '1px solid var(--color-window-border)' }}
+        style={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          gap: 2,
+          padding: '4px 6px 0',
+          background: '#c0c0c0',
+          borderBottom: '2px solid #808080',
+        }}
       >
-        {(['BRIEFING', 'SCHEMA'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className="rounded px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-widest transition-colors"
-            style={{
-              background: tab === t ? 'rgba(127,191,127,0.15)' : 'transparent',
-              color: tab === t ? PHOSPHOR_BRIGHT : 'var(--color-text-secondary)',
-            }}
-          >
-            {t}
-          </button>
-        ))}
+        {(['BRIEFING', 'SCHEMA'] as Tab[]).map((t) => {
+          const active = tab === t
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              style={{
+                background: active ? '#c0c0c0' : '#a0a0a0',
+                border: '2px solid',
+                borderColor: '#ffffff #808080 transparent #ffffff',
+                borderBottom: 'none',
+                padding: active ? '4px 14px 5px' : '3px 14px',
+                fontSize: 12,
+                fontFamily: 'Arial, sans-serif',
+                fontWeight: active ? 'bold' : 'normal',
+                color: '#000000',
+                cursor: 'default',
+                marginBottom: -2,
+                position: active ? 'relative' : 'static',
+                zIndex: active ? 1 : 'auto',
+              }}
+            >
+              {t}
+            </button>
+          )
+        })}
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col">
         {tab === 'BRIEFING' ? (
-          <BriefingDoc briefing={activeCase.briefing} stamp={stamp} />
+          <BriefingDoc briefing={activeCase.briefing} />
         ) : (
-          <SchemaView
-            stamp={stamp}
-            tables={activeCase.schema.tables}
-          />
+          <SchemaView stamp={stamp} tables={activeCase.schema.tables} />
         )}
       </div>
     </div>
   )
 }
 
-function BriefingDoc({ briefing, stamp }: { briefing: string; stamp: string }) {
+function BriefingDoc({ briefing }: { briefing: string }) {
   return (
     <div
-      className="relative h-full overflow-y-auto px-10 py-10 no-scrollbar"
+      className="no-scrollbar"
       style={{
-        background: '#f5f0e8',
-        backgroundImage:
-          'repeating-linear-gradient(0deg, transparent, transparent 24px, rgba(0,0,0,0.04) 24px, rgba(0,0,0,0.04) 25px)',
+        flex: 1,
+        overflowY: 'auto',
+        background: '#ffffff',
+        padding: '16px 20px',
+        border: '2px solid',
+        borderColor: '#808080 #ffffff #ffffff #808080', // sunken inset
+        margin: '0 6px 6px',
+        fontFamily: "'Courier New', monospace",
+        fontSize: 13,
+        lineHeight: 1.7,
+        color: '#000000',
+        whiteSpace: 'pre-wrap',
       }}
     >
-      {/* Red case stamp */}
-      <div
-        className="pointer-events-none absolute right-8 top-8 select-none rounded border-2 px-3 py-1 font-mono text-lg font-extrabold tracking-widest"
-        style={{
-          color: '#b91c1c',
-          borderColor: '#b91c1c',
-          opacity: 0.8,
-          transform: 'rotate(-5deg)',
-        }}
-      >
-        CASE {stamp}
-      </div>
-
-      <pre
-        className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed"
-        style={{ color: '#1c1917' }}
-      >
-        {briefing}
-      </pre>
+      {briefing}
     </div>
   )
 }
@@ -117,51 +133,102 @@ function SchemaView({
   tables: Record<string, { columns: string[] }>
 }) {
   return (
-    <div
-      className="h-full overflow-y-auto px-5 py-5 font-mono no-scrollbar"
-      style={{ background: 'var(--color-window-bg)' }}
-    >
-      <h2
-        className="mb-4 text-[12px] font-bold uppercase tracking-[0.2em]"
-        style={{ color: PHOSPHOR_BRIGHT }}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div
+        style={{
+          fontFamily: "'Courier New', monospace",
+          fontSize: 12,
+          fontWeight: 'bold',
+          color: '#000000',
+          letterSpacing: '0.08em',
+          padding: '8px 10px 6px',
+          borderBottom: '1px solid #808080',
+          background: '#c0c0c0',
+        }}
       >
-        Evidence Database — Case {stamp}
-      </h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        EVIDENCE DATABASE — CASE {stamp}
+      </div>
+      <div
+        className="no-scrollbar"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 10,
+          padding: 10,
+          background: '#c0c0c0',
+          overflowY: 'auto',
+          flex: 1,
+          alignContent: 'flex-start',
+        }}
+      >
         {Object.entries(tables).map(([name, def]) => (
           <div
             key={name}
-            className="rounded-lg border p-3"
             style={{
-              borderColor: 'var(--color-window-border)',
-              background: 'rgba(0,0,0,0.2)',
+              background: '#ffffff',
+              border: '2px solid',
+              borderColor: '#808080 #ffffff #ffffff #808080', // sunken inset
+              padding: 0,
+              borderRadius: 0,
+              overflow: 'hidden',
+              minWidth: 180,
+              flex: '1 1 180px',
             }}
           >
+            {/* Table name — navy header row */}
             <div
-              className="mb-2 text-[13px] font-bold"
-              style={{ color: PHOSPHOR_BRIGHT }}
+              style={{
+                background: '#000080',
+                color: '#ffffff',
+                fontFamily: "'Courier New', monospace",
+                fontSize: 12,
+                fontWeight: 'bold',
+                padding: '4px 10px',
+                letterSpacing: '0.05em',
+              }}
             >
               {name}
             </div>
-            <ul className="space-y-1">
+            {/* Columns */}
+            <div style={{ padding: '4px 0' }}>
               {def.columns.map((col) => {
                 const [colName, ...rest] = col.split(' ')
                 return (
-                  <li
+                  <div
                     key={col}
-                    className="flex items-baseline justify-between text-[12px]"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#e8e8ff'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent'
+                    }}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '2px 10px',
+                      fontFamily: "'Courier New', monospace",
+                      fontSize: 11,
+                      borderBottom: '1px solid #e8e8e8',
+                    }}
                   >
-                    <span style={{ color: PHOSPHOR }}>{colName}</span>
+                    <span style={{ color: '#000000', fontWeight: 'normal' }}>
+                      {colName}
+                    </span>
                     <span
-                      className="text-[10px] uppercase tracking-wider"
-                      style={{ color: 'var(--color-text-tertiary)' }}
+                      style={{
+                        color: '#808080',
+                        fontSize: 10,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
                     >
                       {rest.join(' ')}
                     </span>
-                  </li>
+                  </div>
                 )
               })}
-            </ul>
+            </div>
           </div>
         ))}
       </div>
