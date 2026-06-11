@@ -69,15 +69,28 @@ export default function Inbox() {
     <div className="flex h-full w-full bg-[var(--color-window-bg)]">
       {/* Left — email list */}
       <aside className="flex h-full w-80 shrink-0 flex-col border-r border-[var(--color-window-border)] bg-[var(--color-sidebar-bg)]">
-        <div className="shrink-0 px-4 pb-3 pt-4">
-          <div className="text-[16px] font-semibold text-[var(--color-text-primary)]">
+        <div
+          className="shrink-0"
+          style={{
+            background: '#c0c0c0',
+            borderBottom: '2px solid #808080',
+            padding: '10px 12px',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'Arial, sans-serif',
+              fontSize: 14,
+              fontWeight: 'bold',
+              color: '#000000',
+            }}
+          >
             Dispatch Inbox
           </div>
-          <div className="text-[12px] text-[var(--color-text-secondary)]">
+          <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 11, color: '#444444' }}>
             Municipal Database Division
           </div>
         </div>
-        <div className="h-px shrink-0 bg-[var(--color-window-border)]" />
 
         <div className="min-h-0 flex-1 overflow-auto">
           {CASES.map((c, i) => (
@@ -144,8 +157,8 @@ function EmailRow({
         locked
           ? 'cursor-default opacity-40'
           : selected
-            ? 'bg-[var(--color-sidebar-active)]'
-            : 'hover:bg-white/5'
+            ? 'bg-[#404040]'
+            : 'hover:bg-[#d8d8d8]'
       }`}
     >
       {/* Left edge: unread dot / lock */}
@@ -166,29 +179,41 @@ function EmailRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <span
-            className={`truncate text-[14px] text-[var(--color-text-primary)] ${
-              unread ? 'font-bold' : 'font-normal'
-            }`}
+            className={`truncate text-[14px] ${
+              selected ? 'text-white' : 'text-[var(--color-text-primary)]'
+            } ${unread ? 'font-bold' : 'font-normal'}`}
           >
             Dispatch
           </span>
-          <span className="shrink-0 text-[11px] text-[var(--color-text-tertiary)]">
+          <span
+            className={`shrink-0 text-[11px] ${
+              selected ? 'text-white' : 'text-[var(--color-text-tertiary)]'
+            }`}
+          >
             {time}
           </span>
         </div>
         <div
-          className={`truncate text-[13px] text-[var(--color-text-primary)] ${
-            unread ? 'font-bold' : 'font-normal'
-          }`}
+          className={`truncate text-[13px] ${
+            selected ? 'text-white' : 'text-[var(--color-text-primary)]'
+          } ${unread ? 'font-bold' : 'font-normal'}`}
         >
           {subjectOf(caseItem)}
         </div>
         <div className="flex items-center gap-2">
-          <span className="truncate text-[12px] text-[var(--color-text-secondary)]">
+          <span
+            className={`truncate text-[12px] ${
+              selected ? 'text-white' : 'text-[var(--color-text-secondary)]'
+            }`}
+          >
             {previewOf(caseItem)}
           </span>
           {completed && (
-            <span className="ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold text-[#6bffb8]">
+            <span
+              className={`ml-auto shrink-0 px-1.5 py-0.5 text-[10px] font-semibold ${
+                selected ? 'text-white' : 'text-[#006600]'
+              }`}
+            >
               ✓ CLOSED
             </span>
           )}
@@ -213,7 +238,20 @@ function EmailReader({ caseItem }: { caseItem: GameCase }) {
         <HeaderLine label="SUBJECT" value={subjectOf(caseItem)} />
         <HeaderLine label="DATE" value={`${date}, ${time}`} />
         <div className="my-2 border-t border-[var(--color-window-border)]" />
-        <span className="inline-block rounded bg-[#3a2c0e] px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#e0b020]">
+        <span
+          style={{
+            background: '#000080',
+            color: '#ffffff',
+            border: '2px solid',
+            borderColor: '#808080 #ffffff #ffffff #808080',
+            padding: '4px 12px',
+            fontFamily: "'Courier New', monospace",
+            fontSize: 12,
+            fontWeight: 'bold',
+            letterSpacing: '0.05em',
+            display: 'inline-block',
+          }}
+        >
           CLASSIFICATION: {caseItem.classification}
         </span>
       </div>
@@ -266,19 +304,14 @@ function ReaderButton({
   onClick: () => void
   primary?: boolean
 }) {
+  // Shared Win95 raised button (globals.css `.win95-btn`): gray fill, raised
+  // bevel that flips sunken on :active, Arial 12px, square corners. The primary
+  // action (Open SQL Terminal) is the same chrome, just bold.
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md px-4 py-1.5 text-[13px] font-medium transition-colors"
-      style={
-        primary
-          ? { background: 'var(--color-accent)', color: '#fff' }
-          : {
-              border: '1px solid var(--color-window-border)',
-              color: 'var(--color-accent)',
-            }
-      }
+      className={`win95-btn ${primary ? 'font-bold' : ''}`}
     >
       {label}
     </button>
