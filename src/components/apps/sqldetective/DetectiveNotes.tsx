@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useCaseStore } from '@/store/useCaseStore'
+import { loadNote, saveNote } from '@/lib/gameState'
 
 // A lined-notepad scratchpad for the player's working notes — cream paper,
-// dark ink, ruled lines. Notes are keyed per case (detective-notes-<caseId>)
-// so switching cases never bleeds notes across investigations. Content
-// persists to localStorage and auto-saves 500ms after the last keystroke.
-// No backend; this is per-device by design.
+// dark ink, ruled lines. Notes are keyed per case so switching cases never
+// bleeds notes across investigations. Content persists via gameState
+// (Supabase when logged in, localStorage offline cache otherwise) and
+// auto-saves 500ms after the last keystroke, so notes follow the detective
+// across devices.
 
 const FALLBACK_STACK = "'Caveat', 'Comic Sans MS', cursive"
 
@@ -19,39 +21,36 @@ function caseNumber(id: string): string {
 
 export default function DetectiveNotes() {
   const activeCaseId = useCaseStore((s) => s.activeCaseId)
-  const storageKey = `detective-notes-${activeCaseId}`
 
   const [text, setText] = useState('')
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // The not-yet-written save, with the key it belongs to — so a case switch
-  // mid-debounce flushes to the OLD case's key, never the new one.
-  const pendingSave = useRef<{ key: string; value: string } | null>(null)
+  // The not-yet-written save, with the caseId it belongs to — so a case switch
+  // mid-debounce flushes to the OLD case, never the new one.
+  const pendingSave = useRef<{ caseId: string; value: string } | null>(null)
 
   const flushSave = () => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = null
     if (pendingSave.current) {
-      try {
-        window.localStorage.setItem(pendingSave.current.key, pendingSave.current.value)
-      } catch {
-        /* ignore quota / availability errors */
-      }
+      saveNote(pendingSave.current.caseId, pendingSave.current.value)
       pendingSave.current = null
     }
   }
 
-  // Load this case's notes; on case switch (or unmount) flush any pending save
-  // for the previous case first. (localStorage is client-only; this app is
-  // rendered with ssr:false so window is always available here.)
+  // Load this case's notes (async — Supabase or localStorage); on case switch
+  // (or unmount) flush any pending save for the previous case first.
   useEffect(() => {
-    try {
-      setText(window.localStorage.getItem(storageKey) ?? '')
-    } catch {
-      setText('') /* localStorage unavailable — degrade to in-memory only. */
+    let cancelled = false
+    ;(async () => {
+      const content = await loadNote(activeCaseId)
+      if (!cancelled) setText(content)
+    })()
+    return () => {
+      cancelled = true
+      flushSave()
     }
-    return flushSave
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey])
+  }, [activeCaseId])
 
   // Inject the Caveat handwriting font once. Falls back to system cursive if
   // the network is unavailable.
@@ -68,7 +67,7 @@ export default function DetectiveNotes() {
 
   const onChange = (value: string) => {
     setText(value)
-    pendingSave.current = { key: storageKey, value }
+    pendingSave.current = { caseId: activeCaseId, value }
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(flushSave, 500)
   }

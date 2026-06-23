@@ -4,9 +4,11 @@ import { readState, writeState } from '@/lib/server/storage'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-// GET /api/state → the saved { nodes, settings }, or nulls if nothing saved yet.
-export async function GET() {
-  const state = await readState()
+// GET /api/state?key=<uid|guest> → that account's saved { nodes, settings },
+// or nulls if nothing saved yet.
+export async function GET(req: NextRequest) {
+  const key = new URL(req.url).searchParams.get('key') || 'guest'
+  const state = await readState(key)
   return NextResponse.json(state ?? { nodes: null, settings: null })
 }
 
@@ -27,6 +29,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'missing nodes' }, { status: 400 })
   }
 
-  await writeState({ nodes, settings: settings ?? null, savedAt: Date.now() })
+  const key = new URL(req.url).searchParams.get('key') || 'guest'
+  await writeState(key, { nodes, settings: settings ?? null, savedAt: Date.now() })
   return NextResponse.json({ ok: true })
 }

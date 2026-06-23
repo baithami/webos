@@ -3,6 +3,7 @@
 import { Z } from '@/lib/constants'
 import { useWindowStore } from '@/store/useWindowStore'
 import { useCaseStore } from '@/store/useCaseStore'
+import { useAuth } from '@/lib/supabase/AuthContext'
 import { APPS } from '@/lib/apps'
 
 interface Props {
@@ -56,6 +57,7 @@ const ITEM_STYLE: React.CSSProperties = {
 export default function StartMenu({ onClose }: Props) {
   const openApp = useWindowStore((s) => s.openApp)
   const unread = useCaseStore((s) => s.unreadCount())
+  const { user, signOut } = useAuth()
 
   const launch = (id: string) => {
     onClose()
@@ -152,6 +154,22 @@ export default function StartMenu({ onClose }: Props) {
         })}
 
         <div className="win95-separator" />
+        {user && (
+          <button
+            className="win95-menu-item"
+            style={ITEM_STYLE}
+            onClick={() => {
+              onClose()
+              void signOut()
+            }}
+          >
+            <span style={{ fontSize: 16, width: 20, textAlign: 'center', flexShrink: 0 }}>🔑</span>
+            <span style={{ flex: 1 }}>Sign Out</span>
+            <span style={{ fontSize: 10, color: '#444444', maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.email}
+            </span>
+          </button>
+        )}
         <button className="win95-menu-item" style={ITEM_STYLE} onClick={onClose}>
           <span style={{ fontSize: 16, width: 20, textAlign: 'center', flexShrink: 0 }}>💻</span>
           <span>Shut Down…</span>

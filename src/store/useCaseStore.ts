@@ -28,6 +28,17 @@ interface CaseState {
   useHint: (caseId: string) => void
   openCase: (caseId: string) => void
   markDesktopIconCreated: (caseId: string) => void
+
+  // Hydrate progression from remote (Supabase) state on login. Only the
+  // persisted progression fields; game logic is unchanged. See GameSync.
+  hydrate: (partial: {
+    activeCaseId?: string
+    completedCases?: string[]
+    hintsUsed?: Record<string, number>
+    xp?: number
+    openedCases?: string[]
+    desktopIconsCreated?: string[]
+  }) => void
 }
 
 export const useCaseStore = create<CaseState>()(
@@ -94,6 +105,17 @@ export const useCaseStore = create<CaseState>()(
             ? s
             : { desktopIconsCreated: [...s.desktopIconsCreated, caseId] }
         ),
+
+      hydrate: (partial) =>
+        set((s) => ({
+          activeCaseId: partial.activeCaseId ?? s.activeCaseId,
+          completedCases: partial.completedCases ?? s.completedCases,
+          hintsUsed: partial.hintsUsed ?? s.hintsUsed,
+          xp: partial.xp ?? s.xp,
+          openedCases: partial.openedCases ?? s.openedCases,
+          desktopIconsCreated:
+            partial.desktopIconsCreated ?? s.desktopIconsCreated,
+        })),
     }),
     {
       name: 'sql-detective-game-state',

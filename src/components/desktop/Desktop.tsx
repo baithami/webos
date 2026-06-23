@@ -11,7 +11,10 @@ import MobileOverlay from './MobileOverlay'
 import WindowLayer from '@/components/window/WindowLayer'
 import SystemLayer from '@/components/system/SystemLayer'
 import StateSync from '@/components/system/StateSync'
+import GameSync from '@/components/system/GameSync'
 import DesktopIcons from './DesktopIcons'
+import AuthScreen from '@/components/system/AuthScreen'
+import { useAuth } from '@/lib/supabase/AuthContext'
 
 export interface ContextMenuState {
   x: number
@@ -37,6 +40,9 @@ export default function Desktop() {
   const accent = useSystemStore((s) => s.accent)
   const accentHover = useAccentHover(accent)
   const closeAllPopovers = useUIStore((s) => s.closeAllPopovers)
+
+  const { user, loading: authLoading, configured: authConfigured } = useAuth()
+  const [guest, setGuest] = useState(false)
 
   const [mounted, setMounted] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
@@ -115,6 +121,18 @@ export default function Desktop() {
     return <div className="h-full w-full bg-[var(--color-desktop-bg)]" />
   }
 
+  // Auth gate: when Supabase is configured, an unauthenticated user sees the
+  // CrimeOS officer-authentication screen INSTEAD of the boot sequence (unless
+  // they chose to continue as a guest). While the session resolves, hold on a
+  // blank teal screen to avoid flashing the desktop. When Supabase is not
+  // configured the app runs in guest mode and skips this entirely.
+  if (authConfigured && !user && !guest) {
+    if (authLoading) {
+      return <div className="h-full w-full" style={{ background: '#008080' }} />
+    }
+    return <AuthScreen onGuest={() => setGuest(true)} />
+  }
+
   return (
     <main
       ref={desktopRef}
@@ -163,6 +181,7 @@ export default function Desktop() {
         })()}
 
       <StateSync />
+      <GameSync />
       <SystemLayer />
       <MobileOverlay />
     </main>
