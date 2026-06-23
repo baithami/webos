@@ -22,6 +22,26 @@ import { win95LightTheme, win95SqlSyntax } from './win95Theme'
 type SqlDatabase = Awaited<ReturnType<typeof createCaseDb>>
 type DbStatus = 'loading' | 'ready' | 'error'
 
+// Insecure-origin clipboard fallback: copy via a hidden, selected textarea.
+// Works on plain-http LAN origins where navigator.clipboard is unavailable.
+function fallbackCopy(text: string, onDone: () => void) {
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.top = '-1000px'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    if (ok) onDone()
+  } catch {
+    /* clipboard unavailable — no-op */
+  }
+}
+
 // Classic Win95 raised button; border flips to sunken while pressed.
 const win95Btn =
   'shrink-0 cursor-default select-none border-2 bg-[#c0c0c0] px-3 py-0.5 text-[12px] text-black ' +
@@ -56,6 +76,10 @@ export default function SqlTerminal() {
   // The accusation bar: open state + the name the player is typing.
   const [accusing, setAccusing] = useState(false)
   const [accusation, setAccusation] = useState('')
+  // Brief "Copied …" confirmation (the copied label, or null when idle).
+  const [copied, setCopied] = useState<string | null>(null)
+  // The currently-selected results cell (for single-cell highlight + COPY ROW).
+  const [selCell, setSelCell] = useState<{ r: number; c: string } | null>(null)
 
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -80,6 +104,7 @@ export default function SqlTerminal() {
     setHasRunSuccess(false)
     setAccusing(false)
     setAccusation('')
+    setSelCell(null)
     dbRef.current?.close()
     dbRef.current = null
 
@@ -115,6 +140,7 @@ export default function SqlTerminal() {
     const result = executeQuery(getSql(), dbRef.current, activeCase.schema)
     setOutcome(result)
     setSubmitResult(null)
+    setSelCell(null)
     if (result.type === 'success') setHasRunSuccess(true)
   }, [activeCase, dbStatus, getSql])
 
@@ -172,6 +198,44 @@ export default function SqlTerminal() {
       setSubmitResult('wrong')
     }
   }
+
+  // Copy a string to the clipboard, showing a brief confirmation. On a secure
+  // origin (https — e.g. through the Cloudflare tunnel) the clipboard API is
+  // used; on plain http (LAN IP) it falls back to a hidden-textarea execCommand.
+  const copyText = useCallback((text: string, label: string) => {
+    const done = () => {
+      setCopied(label)
+      window.setTimeout(() => setCopied(null), 1200)
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done))
+    } else {
+      fallbackCopy(text, done)
+    }
+  }, [])
+
+  // Click a single cell → copy just that value (one item at a time) and mark it
+  // selected. Skips when the user is drag-selecting text so manual highlight +
+  // Ctrl/Cmd+C still works.
+  const copyCell = useCallback(
+    (r: number, c: string, value: string) => {
+      if ((window.getSelection()?.toString() ?? '').length > 0) return
+      setSelCell({ r, c })
+      copyText(value, value)
+    },
+    [copyText],
+  )
+
+  // The COPY ROW button → copy the selected cell's whole row (tab-separated).
+  const copyRow = useCallback(() => {
+    if (outcome?.type !== 'success' || !selCell) return
+    const row = outcome.result.rows[selCell.r]
+    if (!row) return
+    const tsv = outcome.result.columns
+      .map((c) => String(row[c] ?? 'NULL'))
+      .join('\t')
+    copyText(tsv, 'row')
+  }, [outcome, selCell, copyText])
 
   const handleHint = () => {
     if (!activeCase) return
@@ -239,10 +303,34 @@ export default function SqlTerminal() {
 
           {/* Results */}
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 border-b border-t-2 border-[#808080] bg-[#c0c0c0] px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.05em] text-black">
-              RESULTS
+            <div className="flex h-[22px] shrink-0 items-center justify-between border-b border-t-2 border-[#808080] bg-[#c0c0c0] px-2.5 text-[11px] font-bold uppercase tracking-[0.05em] text-black">
+              <span>RESULTS</span>
+              {outcome?.type === 'success' && (
+                <span className="flex items-center gap-2">
+                  {copied !== null && (
+                    <span className="font-normal normal-case tracking-normal text-[#006600]">
+                      ✓ copied{copied === 'row' ? ' row' : ` "${copied}"`}
+                    </span>
+                  )}
+                  <button
+                    onClick={copyRow}
+                    disabled={!selCell}
+                    title={
+                      selCell
+                        ? 'Copy the selected row (tab-separated)'
+                        : 'Click a cell first, then copy its whole row'
+                    }
+                    className={`${win95Btn} tracking-widest`}
+                  >
+                    ⧉ COPY ROW
+                  </button>
+                </span>
+              )}
             </div>
-            <div className="min-h-0 flex-1 overflow-auto border-2 [border-color:#808080_#ffffff_#ffffff_#808080] bg-white px-2.5 py-2 text-[13px] text-black">
+            <div
+              className="min-h-0 flex-1 cursor-text select-text overflow-auto border-2 [border-color:#808080_#ffffff_#ffffff_#808080] bg-white px-2.5 py-2 text-[13px] text-black"
+              style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
+            >
               {dbStatus === 'loading' && (
                 <span>
                   <span className="text-[#000080]">{'>'}</span> Initializing
@@ -315,14 +403,25 @@ export default function SqlTerminal() {
                             i % 2 === 0 ? 'bg-white' : 'bg-[#f0f0f8]'
                           }`}
                         >
-                          {outcome.result.columns.map((col) => (
-                            <td
-                              key={col}
-                              className="border-b border-[#e0e0e8] px-2.5 py-0.5 text-black"
-                            >
-                              {String(row[col] ?? 'NULL')}
-                            </td>
-                          ))}
+                          {outcome.result.columns.map((col) => {
+                            const cell = String(row[col] ?? 'NULL')
+                            const isSel =
+                              selCell?.r === i && selCell?.c === col
+                            return (
+                              <td
+                                key={col}
+                                onClick={() => copyCell(i, col, cell)}
+                                title="Click to copy this value"
+                                className={`cursor-pointer border-b border-[#e0e0e8] px-2.5 py-0.5 ${
+                                  isSel
+                                    ? 'bg-[#000080] text-white'
+                                    : 'text-black'
+                                }`}
+                              >
+                                {cell}
+                              </td>
+                            )
+                          })}
                         </tr>
                       ))}
                     </tbody>
