@@ -15,6 +15,13 @@ export interface Wallpaper {
 
 export const WALLPAPERS: Wallpaper[] = [
   {
+    id: 'jpd-hq',
+    name: 'JPD Headquarters',
+    image: '/wallpapers/jpd-hq.jpg',
+    gradient: 'linear-gradient(180deg, #1a8d8a 0%, #147b78 100%)',
+    pairsWith: 'dark',
+  },
+  {
     id: 'sonoma-dark',
     name: 'Sonoma Dark',
     image: '/wallpapers/sonoma-dark.jpg',
@@ -48,7 +55,7 @@ export const WALLPAPERS: Wallpaper[] = [
   },
 ]
 
-export const DEFAULT_WALLPAPER_ID = 'sonoma-dark'
+export const DEFAULT_WALLPAPER_ID = 'jpd-hq'
 
 export function getWallpaper(id: string): Wallpaper {
   return WALLPAPERS.find((w) => w.id === id) ?? WALLPAPERS[0]
