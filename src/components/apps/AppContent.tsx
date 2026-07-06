@@ -37,6 +37,7 @@ const CONTENT: Record<string, React.ComponentType> = {
   casefile: dyn(() => import('./sqldetective/CaseFile')),
   'sql-terminal': dyn(() => import('./sqldetective/SqlTerminal')),
   'detective-notes': dyn(() => import('./sqldetective/DetectiveNotes')),
+  supervisor: dyn(() => import('./sqldetective/SupervisorConsole')),
 }
 
 export default function AppContent({ appId }: { appId: string }) {

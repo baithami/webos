@@ -14,6 +14,7 @@ import {
   FolderOpen,
   Database,
   NotebookPen,
+  RadioTower,
 } from 'lucide-react'
 
 // Application registry. Full app windows arrive in Layer 4; for now this
@@ -127,6 +128,15 @@ export const APPS: AppDefinition[] = [
     icon: NotebookPen,
     tile: 'from-yellow-600 to-amber-700',
     pinned: true,
+  },
+  {
+    id: 'supervisor',
+    name: 'Supervisor Console',
+    icon: RadioTower,
+    tile: 'from-stone-400 to-stone-600',
+    // pinned has no effect in the Win95 shell (taskbar shows running windows
+    // only). Summon via Spotlight ("supervisor") + auto-pop on first case open.
+    pinned: false,
   },
 ]
 

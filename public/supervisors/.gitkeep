@@ -1,0 +1,3 @@
+# Drop real CRT face footage here as: <portraitId>/<expr>_closed.png and <expr>_open.png
+# (e.g. vane/neutral_closed.png, vane/neutral_open.png, vane/stern_open.png …)
+# Expressions: neutral, stern, pleased, suspicious. Then set USE_PLACEHOLDER_FACE = false in SupervisorConsole.tsx.

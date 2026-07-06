@@ -60,6 +60,11 @@ export default function Inbox() {
     const firstOpen = !openedCases.includes(c.id)
     openCase(c.id)
     setActiveCase(c.id)
+    // First time a case is opened, summon the Supervisor Console; it plays the
+    // case's intro itself (all dialogue logic lives in SupervisorConsole).
+    if (firstOpen) {
+      useWindowStore.getState().openApp('supervisor')
+    }
     if (firstOpen && !desktopIconsCreated.includes(c.id)) {
       createCaseDesktopIcon(c)
     }
