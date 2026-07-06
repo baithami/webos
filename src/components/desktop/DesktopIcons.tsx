@@ -10,49 +10,15 @@ import { FileIcon } from '@/components/apps/finder/shared'
 const DESKTOP_FOLDER_ID = 'desktop'
 const DRIVE_KEY = '__drive__'
 
-interface SelectionRect {
-  startX: number
-  startY: number
-  currentX: number
-  currentY: number
-  active: boolean
-}
-
-/** True if the marquee rect overlaps the icon, both in container-local space. */
-function rectsOverlap(
-  sel: SelectionRect,
-  iconRect: DOMRect,
-  containerRect: DOMRect
-): boolean {
-  const selLeft = Math.min(sel.startX, sel.currentX)
-  const selRight = Math.max(sel.startX, sel.currentX)
-  const selTop = Math.min(sel.startY, sel.currentY)
-  const selBottom = Math.max(sel.startY, sel.currentY)
-
-  const iconLeft = iconRect.left - containerRect.left
-  const iconRight = iconRect.right - containerRect.left
-  const iconTop = iconRect.top - containerRect.top
-  const iconBottom = iconRect.bottom - containerRect.top
-
-  return !(
-    selRight < iconLeft ||
-    selLeft > iconRight ||
-    selBottom < iconTop ||
-    selTop > iconBottom
-  )
-}
-
 /**
  * Icons on the desktop surface: the system drive ("My Computer") plus the live
  * contents of the Desktop folder. Single-click selects, double-click opens —
  * the drive and folders open in Finder, files open in their default app.
- * A marquee (rubber-band) drag on the desktop highlights overlapping icons.
+ * A marquee (rubber-band) drag on the desktop highlights overlapping icons —
+ * Desktop.tsx drives that imperatively by toggling the `marquee-hit` class
+ * (see globals.css), so this layer never re-renders during a drag.
  */
-export default function DesktopIcons({
-  selectionBox,
-}: {
-  selectionBox?: SelectionRect | null
-}) {
+export default function DesktopIcons() {
   const nodes = useFileSystemStore((s) => s.nodes)
   const openFile = useAppIntent((s) => s.openFile)
   const openFolder = useAppIntent((s) => s.openFolder)
@@ -98,8 +64,6 @@ export default function DesktopIcons({
           selected={selected === DRIVE_KEY}
           onSelect={() => setSelected(DRIVE_KEY)}
           onOpen={() => openFolder(ROOT_ID)}
-          selectionBox={selectionBox}
-          containerRef={containerRef}
         >
           <DriveGlyph />
         </DesktopIcon>
@@ -111,8 +75,6 @@ export default function DesktopIcons({
             selected={selected === node.id}
             onSelect={() => setSelected(node.id)}
             onOpen={() => openItem(node)}
-            selectionBox={selectionBox}
-            containerRef={containerRef}
           >
             <FileIcon node={node} size={52} />
           </DesktopIcon>
@@ -152,35 +114,15 @@ function DesktopIcon({
   onSelect,
   onOpen,
   children,
-  selectionBox,
-  containerRef,
 }: {
   label: string
   selected: boolean
   onSelect: () => void
   onOpen: () => void
   children: React.ReactNode
-  selectionBox?: SelectionRect | null
-  containerRef?: React.RefObject<HTMLDivElement>
 }) {
-  const iconRef = useRef<HTMLButtonElement>(null)
-
-  // While a marquee drag is active, an overlapping icon shows as selected.
-  // Reading layout on render is fine here: every pointermove re-renders this.
-  const isInSelection =
-    selectionBox?.active && iconRef.current && containerRef?.current
-      ? rectsOverlap(
-          selectionBox,
-          iconRef.current.getBoundingClientRect(),
-          containerRef.current.getBoundingClientRect()
-        )
-      : false
-
-  const isSelected = selected || isInSelection
-
   return (
     <button
-      ref={iconRef}
       data-desktop-icon
       onClick={(e) => {
         e.stopPropagation()
@@ -193,16 +135,16 @@ function DesktopIcon({
       className="group pointer-events-auto flex w-[88px] flex-col items-center gap-1 rounded-lg p-1.5 text-center outline-none"
     >
       <span
-        className={`rounded-xl p-1 transition-colors ${
-          isSelected ? 'bg-white/25' : 'group-hover:bg-white/10'
+        className={`di-tile rounded-xl p-1 transition-colors ${
+          selected ? 'bg-white/25' : 'group-hover:bg-white/10'
         }`}
         style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.45))' }}
       >
         {children}
       </span>
       <span
-        className={`line-clamp-2 max-w-full rounded px-1.5 text-[12px] font-medium leading-tight ${
-          isSelected
+        className={`di-label line-clamp-2 max-w-full rounded px-1.5 text-[12px] font-medium leading-tight ${
+          selected
             ? 'bg-[var(--color-accent)] text-white'
             : 'text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]'
         }`}

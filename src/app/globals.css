@@ -218,3 +218,14 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Marquee (rubber-band) hover highlight. Toggled imperatively during a drag
+   by Desktop.tsx — kept out of React so pointermove never re-renders. */
+[data-desktop-icon].marquee-hit .di-tile {
+  background: rgba(255, 255, 255, 0.25);
+}
+[data-desktop-icon].marquee-hit .di-label {
+  background: var(--color-accent);
+  color: #ffffff;
+  text-shadow: none;
+}

@@ -55,7 +55,8 @@ export const useCaseStore = create<CaseState>()(
 
       isLocked: (caseId) => {
         const idx = CASES.findIndex((c) => c.id === caseId)
-        if (idx <= 0) return false
+        if (idx === -1) return true // unknown id: locked, never silently open
+        if (idx === 0) return false // first case is always available
         const prev = CASES[idx - 1]
         return !get().completedCases.includes(prev.id)
       },
@@ -119,6 +120,11 @@ export const useCaseStore = create<CaseState>()(
     }),
     {
       name: 'sql-detective-game-state',
+      // Bump + extend migrate() whenever a persisted field is renamed or
+      // reshaped. Added fields need nothing (shallow default merge covers
+      // them); this hook exists so a future reshape has somewhere to live.
+      version: 1,
+      migrate: (persisted) => persisted as CaseState,
     }
   )
 )

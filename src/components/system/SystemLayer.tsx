@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useSessionStore } from '@/store/useSessionStore'
 import { useUIStore } from '@/store/useUIStore'
+import { Z } from '@/lib/constants'
 import BootScreen from './BootScreen'
 import LoginScreen from './LoginScreen'
 import SleepScreen from './SleepScreen'
@@ -69,7 +70,8 @@ export default function SystemLayer() {
       {anyPopover && (
         <div
           className="absolute inset-0"
-          style={{ zIndex: 750 }}
+          // Just below the lowest popover layer so it can never occlude one.
+          style={{ zIndex: Z.spotlight - 1 }}
           onClick={closeAllPopovers}
           onContextMenu={(e) => {
             e.preventDefault()

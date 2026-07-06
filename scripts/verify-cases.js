@@ -249,10 +249,12 @@ initSqlJs().then((SQL) => {
         setEq(col(parks, 'name'), ['Craig Muller']),
         `got [${col(parks, 'name')}]`
       )
-      warn(
-        "concept ladder gap: solving needs LIKE '%447', but sqlConcepts only declares [SELECT, WHERE, INNER JOIN]",
-        'hint 3 teaches LIKE explicitly; see AUDIT-REPORT.md'
-      )
+      if (!gc.sqlConcepts.includes('LIKE')) {
+        warn(
+          "concept ladder gap: solving needs LIKE '%447' but sqlConcepts does not declare LIKE",
+          'hint 3 teaches LIKE explicitly; see AUDIT-REPORT.md'
+        )
+      }
     }
 
     if (gc.id === 'case-003') {

@@ -21,14 +21,6 @@ export interface ContextMenuState {
   y: number
 }
 
-export interface SelectionBox {
-  startX: number
-  startY: number
-  currentX: number
-  currentY: number
-  active: boolean
-}
-
 /**
  * Root orchestrator for the WebOS shell. Owns:
  *  - theme + accent application to the document root
@@ -46,8 +38,13 @@ export default function Desktop() {
 
   const [mounted, setMounted] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
-  const [selection, setSelection] = useState<SelectionBox | null>(null)
   const desktopRef = useRef<HTMLElement>(null)
+  // Marquee state lives OUTSIDE React on purpose: pointermove fires at display
+  // refresh rate, and routing it through any state store re-renders (or worse,
+  // trips up) the whole shell. The drag mutates these refs and paints the box
+  // + icon highlights straight into the DOM — zero React work per move.
+  const marqueeStart = useRef<{ x: number; y: number } | null>(null)
+  const marqueeRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => setMounted(true), [])
 
@@ -93,26 +90,60 @@ export default function Desktop() {
     if (!onBackground) return
 
     const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-
     closeContextMenu()
-    setSelection({ startX: x, startY: y, currentX: x, currentY: y, active: true })
+    marqueeStart.current = { x: e.clientX - rect.left, y: e.clientY - rect.top }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
 
   const onDesktopPointerMove = (e: React.PointerEvent<HTMLElement>) => {
-    if (!selection?.active) return
+    const start = marqueeStart.current
+    const box = marqueeRef.current
+    if (!start || !box) return
     const rect = e.currentTarget.getBoundingClientRect()
-    setSelection((s) =>
-      s
-        ? { ...s, currentX: e.clientX - rect.left, currentY: e.clientY - rect.top }
-        : null
-    )
+    const cx = e.clientX - rect.left
+    const cy = e.clientY - rect.top
+    const x = Math.min(start.x, cx)
+    const y = Math.min(start.y, cy)
+    const w = Math.abs(cx - start.x)
+    const h = Math.abs(cy - start.y)
+
+    if (w < 3 && h < 3) {
+      box.style.display = 'none'
+      return
+    }
+    box.style.display = 'block'
+    box.style.left = `${x}px`
+    box.style.top = `${y}px`
+    box.style.width = `${w}px`
+    box.style.height = `${h}px`
+
+    // Live icon highlight: overlap test in viewport space, toggled as a CSS
+    // class (styled in globals.css) so no component re-renders.
+    const selLeft = rect.left + x
+    const selTop = rect.top + y
+    const selRight = selLeft + w
+    const selBottom = selTop + h
+    e.currentTarget
+      .querySelectorAll<HTMLElement>('[data-desktop-icon]')
+      .forEach((el) => {
+        const r = el.getBoundingClientRect()
+        const hit = !(
+          selRight < r.left ||
+          selLeft > r.right ||
+          selBottom < r.top ||
+          selTop > r.bottom
+        )
+        el.classList.toggle('marquee-hit', hit)
+      })
   }
 
-  const onDesktopPointerUp = () => {
-    setSelection(null)
+  const onDesktopPointerUp = (e: React.PointerEvent<HTMLElement>) => {
+    if (!marqueeStart.current) return
+    marqueeStart.current = null
+    if (marqueeRef.current) marqueeRef.current.style.display = 'none'
+    e.currentTarget
+      .querySelectorAll<HTMLElement>('[data-desktop-icon].marquee-hit')
+      .forEach((el) => el.classList.remove('marquee-hit'))
   }
 
   // Avoid rendering persisted-state-dependent UI until mounted to prevent
@@ -144,7 +175,7 @@ export default function Desktop() {
       onPointerUp={onDesktopPointerUp}
     >
       <Wallpaper />
-      <DesktopIcons selectionBox={selection} />
+      <DesktopIcons />
       <WindowLayer />
       <Taskbar />
 
@@ -156,29 +187,18 @@ export default function Desktop() {
         />
       )}
 
-      {selection?.active &&
-        (() => {
-          const x = Math.min(selection.startX, selection.currentX)
-          const y = Math.min(selection.startY, selection.currentY)
-          const w = Math.abs(selection.currentX - selection.startX)
-          const h = Math.abs(selection.currentY - selection.startY)
-          if (w < 3 && h < 3) return null
-          return (
-            <div
-              style={{
-                position: 'absolute',
-                left: x,
-                top: y,
-                width: w,
-                height: h,
-                border: '1px dashed #000080',
-                background: 'rgba(0, 0, 128, 0.08)',
-                pointerEvents: 'none',
-                zIndex: 9998,
-              }}
-            />
-          )
-        })()}
+      {/* Rubber-band box; positioned imperatively by onDesktopPointerMove. */}
+      <div
+        ref={marqueeRef}
+        style={{
+          display: 'none',
+          position: 'absolute',
+          border: '1px dashed #000080',
+          background: 'rgba(0, 0, 128, 0.08)',
+          pointerEvents: 'none',
+          zIndex: 9998,
+        }}
+      />
 
       <StateSync />
       <GameSync />

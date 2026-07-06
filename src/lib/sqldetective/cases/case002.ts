@@ -5,7 +5,7 @@ export const case002: GameCase = {
   title: 'The Unauthorized Nap',
   classification: 'UNAUTHORIZED REST (PUBLIC SPACE)',
   difficulty: 2,
-  sqlConcepts: ['SELECT', 'WHERE', 'INNER JOIN'],
+  sqlConcepts: ['SELECT', 'WHERE', 'INNER JOIN', 'LIKE'],
   briefing: `CASE FILE #0002
 CLASSIFICATION: UNAUTHORIZED REST (PUBLIC SPACE)
 

@@ -45,9 +45,13 @@ export default function Inbox() {
   const setActiveCase = useCaseStore((s) => s.setActiveCase)
   const openCase = useCaseStore((s) => s.openCase)
 
-  // Which email is shown in the reader. Defaults to the active case so the
-  // panel isn't empty when the app is reopened on an in-progress case.
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Which email is shown in the reader. Defaults to the active case (when its
+  // email has already been opened) so the panel isn't empty on reopen; a fresh
+  // save shows the placeholder until the player clicks their first dispatch.
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    const s = useCaseStore.getState()
+    return s.openedCases.includes(s.activeCaseId) ? s.activeCaseId : null
+  })
 
   const selected = selectedId
     ? CASES.find((c) => c.id === selectedId) ?? null
@@ -164,7 +168,7 @@ function EmailRow({
         locked
           ? 'cursor-default opacity-40'
           : selected
-            ? 'bg-[#404040]'
+            ? 'bg-[#000080]'
             : 'hover:bg-[#d8d8d8]'
       }`}
     >
@@ -173,12 +177,18 @@ function EmailRow({
         {locked ? (
           <span className="text-[11px] leading-none">🔒</span>
         ) : unread ? (
-          <span className="h-2 w-2 rounded-full bg-[#5fe070]" />
+          <span className="h-2 w-2 rounded-full bg-[#000080]" />
         ) : null}
       </div>
 
-      {/* Avatar */}
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1d4a1d] text-[13px] font-semibold text-[#7fbf7f]">
+      {/* Avatar — flat Win95 navy tile with a raised bevel */}
+      <div
+        className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#000080] text-[13px] font-bold text-white"
+        style={{
+          border: '2px solid',
+          borderColor: '#ffffff #808080 #808080 #ffffff',
+        }}
+      >
         {DISPATCH_INITIALS}
       </div>
 
