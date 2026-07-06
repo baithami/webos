@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useFileSystemStore } from '@/store/useFileSystemStore'
 import { useSystemStore, type Theme } from '@/store/useSystemStore'
 import { useAuth } from '@/lib/supabase/AuthContext'
+import { apiAuthHeaders } from '@/lib/supabase/client'
 import { seedFileSystem, type NodeMap } from '@/lib/fs'
 import { DEFAULT_WALLPAPER_ID } from '@/lib/wallpapers'
 import { ACCENT_COLORS } from '@/lib/constants'
@@ -77,7 +78,10 @@ async function saveState(key: string) {
   try {
     await fetch(`/api/state?key=${encodeURIComponent(key)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await apiAuthHeaders()),
+      },
       body: JSON.stringify({ nodes, settings: { theme, accent, wallpaperId } }),
     })
   } catch {
@@ -107,7 +111,7 @@ export default function StateSync() {
       try {
         const res = await fetch(
           `/api/state?key=${encodeURIComponent(stateKey)}`,
-          { cache: 'no-store' }
+          { cache: 'no-store', headers: await apiAuthHeaders() }
         )
         if (res.ok) {
           const data = await res.json()

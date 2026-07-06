@@ -1,6 +1,9 @@
 // Client helpers for the server-backed media library (see /api/media). Photos
 // are downscaled in the browser before upload to keep them light, then stored
-// as real files in the server's media/ folder.
+// as real files in the server's media/ folder. Uploads/deletes require a
+// signed-in user when Supabase auth is configured (the media folder is shared).
+
+import { apiAuthHeaders } from '@/lib/supabase/client'
 
 const DOWNSCALE_OVER_BYTES = 800_000
 const MAX_DIMENSION = 2560
@@ -28,6 +31,7 @@ export async function deleteMedia(name: string): Promise<boolean> {
   try {
     const res = await fetch(`/api/media/${encodeURIComponent(name)}`, {
       method: 'DELETE',
+      headers: await apiAuthHeaders(),
     })
     return res.ok
   } catch {
@@ -64,13 +68,20 @@ export async function uploadMedia(files: ArrayLike<File>): Promise<UploadResult>
   let saved: MediaItem[] = []
   if (form.has('file')) {
     try {
-      const res = await fetch('/api/media', { method: 'POST', body: form })
+      const res = await fetch('/api/media', {
+        method: 'POST',
+        body: form,
+        headers: await apiAuthHeaders(),
+      })
       if (res.ok) {
         const data = await res.json()
         saved = data.saved ?? []
         for (const s of data.skipped ?? []) skipped.push(s)
       } else {
-        skipped.push({ name: 'upload', reason: 'server rejected' })
+        skipped.push({
+          name: 'upload',
+          reason: res.status === 401 ? 'sign in to upload' : 'server rejected',
+        })
       }
     } catch {
       skipped.push({ name: 'upload', reason: 'network error' })

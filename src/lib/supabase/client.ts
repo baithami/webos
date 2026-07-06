@@ -49,3 +49,18 @@ export function createClient() {
 }
 
 export const supabase = createClient()
+
+/**
+ * Authorization header for the app's own API routes (/api/state, /api/media…),
+ * which validate the Supabase access token server-side. Empty in guest mode.
+ */
+export async function apiAuthHeaders(): Promise<Record<string, string>> {
+  if (!isSupabaseConfigured()) return {}
+  try {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  } catch {
+    return {}
+  }
+}

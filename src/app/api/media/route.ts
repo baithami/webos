@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listMedia, saveMedia } from '@/lib/server/storage'
+import { authedUserId, isSupabaseConfigured } from '@/lib/server/auth'
 
 // The media folder is mutable at runtime, so never cache these.
 export const dynamic = 'force-dynamic'
@@ -14,7 +15,13 @@ export async function GET() {
 }
 
 // POST /api/media → upload one or more images (multipart form field "file").
+// The media folder is shared across accounts, so on a deployment with real
+// auth (Supabase configured) mutations require a signed-in user; without
+// Supabase the app is a local/guest install and stays open.
 export async function POST(req: NextRequest) {
+  if (isSupabaseConfigured() && !(await authedUserId(req))) {
+    return NextResponse.json({ error: 'sign in to upload' }, { status: 401 })
+  }
   let form: FormData
   try {
     form = await req.formData()
