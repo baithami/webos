@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client'
+import { useSyncStore } from '@/store/useSyncStore'
 
 // Canonical game-state persistence adapter for SQL Detective.
 //
@@ -239,6 +240,27 @@ export async function loadState(): Promise<GameState> {
 }
 
 /**
+ * STRICT remote load for the logged-in hydration path (GameSync). Unlike
+ * loadState(), a Supabase failure returns null instead of falling back to
+ * this browser's localStorage — that cache may hold GUEST (or a previous
+ * account's) progress, and hydrating it into a signed-in session would later
+ * be pushed up to the account. Callers must treat null as "retry later" and
+ * keep remote saves blocked until a real load succeeds.
+ */
+export async function loadRemoteState(): Promise<GameState | null> {
+  const userId = await currentUserId()
+  if (!userId) return null
+  try {
+    const state = await loadFromSupabase(userId)
+    useSyncStore.getState().reportGameSync('ok')
+    return state
+  } catch {
+    useSyncStore.getState().reportGameSync('error')
+    return null
+  }
+}
+
+/**
  * Persist the full game state. Fire-and-forget: returns void, runs async
  * internally so synchronous callers don't block. Logged in -> Supabase +
  * localStorage offline cache; guest -> localStorage only.
@@ -251,8 +273,11 @@ export function saveState(state: GameState): void {
     if (!userId) return
     try {
       await saveToSupabase(userId, state)
+      useSyncStore.getState().reportGameSync('ok')
     } catch {
-      /* offline / server down — local cache already written, retries on next change */
+      // Offline / server down — local cache already written, retries on next
+      // change. Surface it so the taskbar can show the offline indicator.
+      useSyncStore.getState().reportGameSync('error')
     }
   })()
 }
@@ -332,8 +357,10 @@ export function saveNote(caseId: string, content: string): void {
         },
         { onConflict: 'user_id,case_id' }
       )
+      useSyncStore.getState().reportGameSync('ok')
     } catch {
-      /* offline / server down — local cache already written */
+      // Offline / server down — local cache already written.
+      useSyncStore.getState().reportGameSync('error')
     }
   })()
 }

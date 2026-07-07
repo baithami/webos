@@ -1,10 +1,11 @@
 'use client'
 
-import { Search, SlidersHorizontal, Bell, Mail } from 'lucide-react'
+import { Search, SlidersHorizontal, Bell, Mail, CloudOff } from 'lucide-react'
 import { Z } from '@/lib/constants'
 import { useWindowStore } from '@/store/useWindowStore'
 import { useUIStore } from '@/store/useUIStore'
 import { useCaseStore } from '@/store/useCaseStore'
+import { useSyncStore } from '@/store/useSyncStore'
 import StartMenu from './StartMenu'
 import TaskbarClock from './TaskbarClock'
 
@@ -28,6 +29,9 @@ export default function Taskbar() {
   const toggleNotifications = useUIStore((s) => s.toggleNotifications)
 
   const unread = useCaseStore((s) => s.unreadCount())
+  const syncError = useSyncStore(
+    (s) => s.stateSync === 'error' || s.gameSync === 'error'
+  )
 
   const activeWindowId = activeId()
 
@@ -172,6 +176,17 @@ export default function Taskbar() {
               <Mail size={14} />
               <span style={{ fontSize: 11, fontWeight: 'bold', color: '#c00000' }}>{unread}</span>
             </button>
+          )}
+          {syncError && (
+            <span
+              data-testid="taskbar-sync-offline"
+              role="status"
+              aria-label="Offline — changes saved locally, not yet synced"
+              title="Offline — changes saved locally, not yet synced"
+              style={{ display: 'flex', alignItems: 'center', color: '#c00000' }}
+            >
+              <CloudOff size={14} />
+            </span>
           )}
           <TrayButton onClick={openSpotlight} label="Search">
             <Search size={14} />

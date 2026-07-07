@@ -5,6 +5,7 @@ import { useFileSystemStore } from '@/store/useFileSystemStore'
 import { useSystemStore, type Theme } from '@/store/useSystemStore'
 import { useAuth } from '@/lib/supabase/AuthContext'
 import { apiAuthHeaders } from '@/lib/supabase/client'
+import { useSyncStore } from '@/store/useSyncStore'
 import { seedFileSystem, type NodeMap } from '@/lib/fs'
 import { DEFAULT_WALLPAPER_ID } from '@/lib/wallpapers'
 import { ACCENT_COLORS } from '@/lib/constants'
@@ -76,7 +77,7 @@ async function saveState(key: string) {
   const nodes = useFileSystemStore.getState().nodes
   const { theme, accent, wallpaperId } = useSystemStore.getState()
   try {
-    await fetch(`/api/state?key=${encodeURIComponent(key)}`, {
+    const res = await fetch(`/api/state?key=${encodeURIComponent(key)}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -84,8 +85,10 @@ async function saveState(key: string) {
       },
       body: JSON.stringify({ nodes, settings: { theme, accent, wallpaperId } }),
     })
+    useSyncStore.getState().reportStateSync(res.ok ? 'ok' : 'error')
   } catch {
     // Offline / server down — keep working from memory; next change retries.
+    useSyncStore.getState().reportStateSync('error')
   }
 }
 
@@ -102,12 +105,22 @@ export default function StateSync() {
   }, [])
 
   // Load this account's state whenever the account changes.
+  //
+  // FAILURE POLICY: a failed fetch is NOT the same as "server has nothing".
+  // Seeding + saving after a failed read would overwrite the account's real
+  // server state with a fresh desktop the moment the network blips. So on
+  // failure: an account key retries with backoff and stays un-hydrated
+  // (which also blocks the debounced saver); the guest key falls back to
+  // localStorage so offline play works, but never writes the seed back.
   useEffect(() => {
     let cancelled = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
     useFileSystemStore.setState({ hydrated: false })
-    ;(async () => {
+
+    const load = async (attempt: number) => {
       let nodes: NodeMap | null = null
       let settings: Settings | null = null
+      let loadFailed = false
       try {
         const res = await fetch(
           `/api/state?key=${encodeURIComponent(stateKey)}`,
@@ -117,13 +130,28 @@ export default function StateSync() {
           const data = await res.json()
           if (data?.nodes && Object.keys(data.nodes).length) nodes = data.nodes
           if (data?.settings) settings = data.settings
+        } else {
+          loadFailed = true
         }
       } catch {
-        // fall through to seed
+        loadFailed = true
       }
       if (cancelled) return
 
-      const serverWasEmpty = !nodes
+      if (loadFailed) {
+        useSyncStore.getState().reportStateSync('error')
+        if (stateKey !== 'guest') {
+          retryTimer = setTimeout(
+            () => load(attempt + 1),
+            Math.min(30_000, 2_000 * 2 ** attempt)
+          )
+          return
+        }
+      } else {
+        useSyncStore.getState().reportStateSync('ok')
+      }
+
+      const serverWasEmpty = !nodes && !loadFailed
       if (!nodes) {
         // Guest: adopt this browser's old localStorage once. A real account:
         // always start fresh so nothing bleeds across profiles.
@@ -139,11 +167,15 @@ export default function StateSync() {
       applySettings(settings)
       useFileSystemStore.setState({ nodes, hydrated: true })
 
-      // Seed the per-account file the first time it's empty.
+      // Seed the per-account file the first time the server GENUINELY has
+      // nothing for it — never as a response to a failed read.
       if (serverWasEmpty) saveState(stateKey)
-    })()
+    }
+
+    load(0)
     return () => {
       cancelled = true
+      clearTimeout(retryTimer)
     }
   }, [stateKey])
 
