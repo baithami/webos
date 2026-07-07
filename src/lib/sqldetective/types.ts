@@ -10,7 +10,7 @@ export interface GameCase {
   id: string
   title: string
   classification: string // e.g. "PETTY THEFT (BAKED GOODS)"
-  difficulty: 1 | 2 | 3
+  difficulty: 1 | 2 | 3 | 4 | 5
   sqlConcepts: string[]
   briefing: string // full text shown in CaseFile
   schema: CaseSchema

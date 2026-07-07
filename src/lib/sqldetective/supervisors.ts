@@ -54,4 +54,32 @@ export const SUPERVISORS: Record<string, Supervisor> = {
     ],
     signoff: { text: 'Compliance is its own reward. Allegedly.', expr: 'pleased' },
   },
+  'case-004': {
+    ...VANE,
+    intro: [
+      { text: 'Someone is parking in the Director’s spot. Spot One. He has been walking an additional four meters, Detective. Four.', expr: 'stern' },
+      { text: 'A witness saw a beige sedan. The garage log knows plates, the registry knows owners, the staff table knows names. None of them talk to each other.', expr: 'neutral' },
+      { text: 'So you will make them talk. Chain the joins. Walk the whole trail from asphalt to name.', expr: 'stern' },
+    ],
+    signoff: { text: 'The Director described his morale as "fragile". I need this closed.', expr: 'suspicious' },
+  },
+  'case-005': {
+    ...VANE,
+    intro: [
+      { text: 'The Coffee Fund is short one hundred twenty-three dollars and twenty-five cents. Finance has stopped smiling. Finance never smiled.', expr: 'stern' },
+      { text: 'Claims live in one table, actual deliveries in another. A claim with no matching delivery is fiction with a dollar sign.', expr: 'neutral' },
+      { text: 'Ask one table a question INSIDE another. A subquery, Detective. The fabricated run codes will fall right out.', expr: 'pleased' },
+    ],
+    signoff: { text: 'Whoever it is has been drinking imaginary coffee at real prices.', expr: 'suspicious' },
+  },
+  'case-006': {
+    ...VANE,
+    intro: [
+      { text: 'Three nights this month, the Records Hall shredder ran while the city slept. The archive index went into its own shredder. Poetic. Infuriating.', expr: 'stern' },
+      { text: 'Day badge-ins are noise. Set your window after twenty-three hundred and see who keeps appearing.', expr: 'neutral' },
+      { text: 'One bad night is coincidence. Three is a pattern. Group the nights, count them, and keep only whoever hits all three.', expr: 'suspicious' },
+      { text: 'This is the one they will remember, Detective. Do not miss.', expr: 'stern' },
+    ],
+    signoff: { text: 'Whoever it is knew exactly which files to feed the machine.', expr: 'suspicious' },
+  },
 }

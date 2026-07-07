@@ -40,7 +40,7 @@ const { executeQuery } = loadTs(path.join(base, 'queryEngine.ts'), {
   './types': typesStub,
   'sql.js': initSqlJs, // only reached via initSql(), which this harness never calls
 })
-const cases = ['case001', 'case002', 'case003'].map((f) => {
+const cases = ['case001', 'case002', 'case003', 'case004', 'case005', 'case006'].map((f) => {
   const mod = loadTs(path.join(base, 'cases', f + '.ts'), { '../types': typesStub })
   return Object.values(mod)[0]
 })
@@ -276,6 +276,94 @@ initSqlJs().then((SQL) => {
       check(
         'ORDER BY count DESC puts Brenda Watts on top',
         counts[0] && counts[0].civilian_name === 'Brenda Watts'
+      )
+    }
+
+    if (gc.id === 'case-004') {
+      // Spot 1 alone surfaces the gray-hatchback red herring alongside the
+      // suspect's beige sedan.
+      const spot1 = rows(
+        db,
+        'SELECT DISTINCT cs.name, v.color, v.model FROM garage_log g JOIN vehicles v ON v.plate = g.plate JOIN city_staff cs ON cs.badge = v.owner_badge WHERE g.spot_number = 1'
+      )
+      check(
+        'spot 1 surfaces Gerald Whitmore AND the Vance Holloway red herring',
+        setEq(col(spot1, 'name'), ['Gerald Whitmore', 'Vance Holloway']),
+        `got [${col(spot1, 'name')}]`
+      )
+      // The OTHER beige sedan never parked in spot 1 (color-match red herring).
+      const beigeElsewhere = rows(
+        db,
+        "SELECT DISTINCT g.spot_number FROM garage_log g JOIN vehicles v ON v.plate = g.plate WHERE v.color = 'beige' AND v.owner_badge = 104"
+      )
+      check(
+        "Omar Bailey's beige sedan never appears in spot 1",
+        beigeElsewhere.every((r) => r.spot_number !== 1),
+        `got spots [${col(beigeElsewhere, 'spot_number')}]`
+      )
+      const solved = rows(
+        db,
+        "SELECT DISTINCT cs.name FROM garage_log g JOIN vehicles v ON v.plate = g.plate JOIN city_staff cs ON cs.badge = v.owner_badge WHERE g.spot_number = 1 AND v.color = 'beige' AND v.model = 'sedan'"
+      )
+      check(
+        'beige-sedan filter isolates exactly Gerald Whitmore',
+        setEq(col(solved, 'name'), ['Gerald Whitmore']),
+        `got [${col(solved, 'name')}]`
+      )
+    }
+
+    if (gc.id === 'case-005') {
+      const phantom = rows(
+        db,
+        'SELECT claimant, run_code FROM reimbursements WHERE run_code NOT IN (SELECT run_code FROM deliveries)'
+      )
+      check(
+        'NOT IN subquery surfaces exactly the two phantom runs RUN-17 and RUN-19',
+        setEq(col(phantom, 'run_code'), ['RUN-17', 'RUN-19']),
+        `got [${col(phantom, 'run_code')}]`
+      )
+      check(
+        'every phantom claim belongs to Marcy Dillon',
+        phantom.length === 2 && phantom.every((r) => r.claimant === 'Marcy Dillon'),
+        `got ${JSON.stringify(phantom)}`
+      )
+      // Everyone else's claims all have matching deliveries.
+      const othersPhantom = rows(
+        db,
+        "SELECT claimant FROM reimbursements WHERE claimant != 'Marcy Dillon' AND run_code NOT IN (SELECT run_code FROM deliveries)"
+      )
+      check('no other claimant has a phantom run', othersPhantom.length === 0)
+    }
+
+    if (gc.id === 'case-006') {
+      const nightWindow =
+        "entry_time BETWEEN '23:00' AND '23:59' AND entry_date IN (SELECT used_date FROM shredder_log)"
+      const nightVisitors = rows(
+        db,
+        `SELECT DISTINCT p.name FROM records_access r JOIN personnel p ON p.badge = r.badge WHERE ${nightWindow}`
+      )
+      check(
+        'night window on shredder dates surfaces Sylvia Marsh AND the Wes Okada red herring',
+        setEq(col(nightVisitors, 'name'), ['Sylvia Marsh', 'Wes Okada']),
+        `got [${col(nightVisitors, 'name')}]`
+      )
+      const pattern = rows(
+        db,
+        `SELECT p.name, COUNT(DISTINCT r.entry_date) AS nights FROM records_access r JOIN personnel p ON p.badge = r.badge WHERE ${nightWindow} GROUP BY p.name HAVING COUNT(DISTINCT r.entry_date) = 3`
+      )
+      check(
+        'HAVING 3 distinct nights isolates exactly Sylvia Marsh',
+        setEq(col(pattern, 'name'), ['Sylvia Marsh']),
+        `got [${col(pattern, 'name')}]`
+      )
+      const okadaNights = rows(
+        db,
+        `SELECT DISTINCT r.entry_date FROM records_access r WHERE r.badge = 210 AND ${nightWindow}`
+      )
+      check(
+        'Wes Okada was there on exactly one shredder night (coincidence, not pattern)',
+        okadaNights.length === 1,
+        `got [${col(okadaNights, 'entry_date')}]`
       )
     }
 

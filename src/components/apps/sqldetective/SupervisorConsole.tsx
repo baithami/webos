@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useCaseStore } from '@/store/useCaseStore'
 import { SUPERVISORS, type Supervisor, type SupervisorLine } from '@/lib/sqldetective/supervisors'
+import { rankForXp } from '@/lib/sqldetective/ranks'
 
 // The Supervisor Console — a beige government machine cabinet with a small
 // recessed CRT face-screen (the ADA ship-computer from The Outer Worlds:
@@ -44,6 +45,7 @@ export default function SupervisorConsole() {
   const hintsUsed = useCaseStore((s) => s.hintsUsed)
   const nextHint = useCaseStore((s) => s.nextHint)
   const revealHint = useCaseStore((s) => s.useHint)
+  const rankTitle = useCaseStore((s) => rankForXp(s.xp).title)
 
   const supervisor: Supervisor | undefined = SUPERVISORS[activeCaseId]
 
@@ -249,6 +251,27 @@ export default function SupervisorConsole() {
       <div className="mt-2 flex shrink-0 items-center gap-2">
         <Lamp color="#27c93f" label="PWR" on />
         <Lamp color="#ff3b30" label="REC" on={printing} blink={printing && !reduced} />
+
+        {/* Embossed rank nameplate — the player's current detective rank */}
+        <span
+          data-testid="supervisor-rank-plate"
+          title="Your current rank — solve cases to advance"
+          style={{
+            marginLeft: 4,
+            padding: '2px 8px',
+            fontSize: 10,
+            fontWeight: 'bold',
+            letterSpacing: 1,
+            color: '#4b4838',
+            textShadow: '1px 1px 0 #efece2',
+            borderStyle: 'solid',
+            borderWidth: 2,
+            borderColor: '#8a8678 #efece2 #efece2 #8a8678', // engraved
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {rankTitle}
+        </span>
 
         <div className="ml-auto flex items-center gap-2">
           <CabinetButton

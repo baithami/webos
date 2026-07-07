@@ -5,6 +5,7 @@ import { useWindowStore } from '@/store/useWindowStore'
 import { useCaseStore } from '@/store/useCaseStore'
 import { createCaseDesktopIcon, createCaseBriefingFile } from '@/lib/sqldetective/desktopIcon'
 import { CASES } from '@/lib/sqldetective/cases'
+import { rankForXp, nextRank } from '@/lib/sqldetective/ranks'
 import type { GameCase } from '@/lib/sqldetective/types'
 
 // The Inbox is the player's email client: each case arrives as a dispatch email
@@ -33,8 +34,15 @@ function previewOf(c: GameCase): string {
 }
 
 // Fixed per-case email metadata (purely cosmetic).
-const TIMES = ['9:07 AM', '9:14 AM', '9:22 AM']
-const DATES = ['May 20, 2026', 'May 20, 2026', 'May 20, 2026']
+const TIMES = ['9:07 AM', '9:14 AM', '9:22 AM', '9:31 AM', '9:47 AM', '10:03 AM']
+const DATES = [
+  'May 20, 2026',
+  'May 20, 2026',
+  'May 20, 2026',
+  'May 21, 2026',
+  'May 21, 2026',
+  'May 22, 2026',
+]
 
 export default function Inbox() {
   const activeCaseId = useCaseStore((s) => s.activeCaseId)
@@ -44,6 +52,7 @@ export default function Inbox() {
   const isLocked = useCaseStore((s) => s.isLocked)
   const setActiveCase = useCaseStore((s) => s.setActiveCase)
   const openCase = useCaseStore((s) => s.openCase)
+  const xp = useCaseStore((s) => s.xp)
 
   // Which email is shown in the reader. Defaults to the active case (when its
   // email has already been opened) so the panel isn't empty on reopen; a fresh
@@ -100,6 +109,23 @@ export default function Inbox() {
           </div>
           <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 11, color: '#444444' }}>
             Municipal Database Division
+          </div>
+          <div
+            data-testid="inbox-rank"
+            title={
+              nextRank(xp)
+                ? `Next rank at ${nextRank(xp)!.xp} XP`
+                : 'Top of the ladder'
+            }
+            style={{
+              marginTop: 4,
+              fontFamily: 'Arial, sans-serif',
+              fontSize: 11,
+              fontWeight: 'bold',
+              color: '#000080',
+            }}
+          >
+            RANK: {rankForXp(xp).title} · {xp} XP
           </div>
         </div>
 
