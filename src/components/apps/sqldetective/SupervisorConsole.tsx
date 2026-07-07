@@ -12,9 +12,12 @@ import { rankForXp } from '@/lib/sqldetective/ranks'
 // case's hints on demand. Hints are pulled live from useCaseStore so the
 // console and the SQL Terminal share one hint counter.
 
-// Flip to false once real face PNGs are dropped into public/supervisors/<id>/.
-// (Until then the CSS placeholder renders the talk animation predictably.)
-const USE_PLACEHOLDER_FACE = true
+// Portrait art cascade (see FaceScreen): per-expression animation frames
+// public/supervisors/<id>/<expr>_<open|closed>.png take precedence; missing
+// frames fall back to the static public/supervisors/<id>/base.jpg portrait
+// (with a talk pulse); if that's missing too, the CSS CRT placeholder renders.
+// Flip to true to force the placeholder while testing.
+const USE_PLACEHOLDER_FACE = false
 
 const TYPE_MS = 22 // per-character teletype speed
 const MOUTH_MS = 200 // talking mouth open/closed swap (~2 fps)
@@ -314,7 +317,10 @@ function FaceScreen({
 }) {
   const [mouthOpen, setMouthOpen] = useState(false)
   const [blink, setBlink] = useState(false)
-  const [imgError, setImgError] = useState(false)
+  // Art cascade state: expression frames missing → static base portrait;
+  // base missing too → CSS placeholder. Sticky per mount (no 404 loops).
+  const [frameError, setFrameError] = useState(false)
+  const [baseError, setBaseError] = useState(false)
 
   // Mouth cycle while talking.
   useEffect(() => {
@@ -348,19 +354,38 @@ function FaceScreen({
     }
   }, [talking, reduced])
 
-  // Real footage path (used once USE_PLACEHOLDER_FACE is false and PNGs exist).
-  if (!USE_PLACEHOLDER_FACE && !imgError) {
+  // Real footage path. Expression frames win; a single static base portrait
+  // is the fallback, animated with a subtle brightness/shift pulse while
+  // talking (and a blink dim) so the machine still reads as alive.
+  if (!USE_PLACEHOLDER_FACE && !baseError) {
     const frame = `${expr}_${mouthOpen ? 'open' : 'closed'}`
+    const usingBase = frameError
+    const src = usingBase
+      ? `/supervisors/${portraitId}/base.jpg`
+      : `/supervisors/${portraitId}/${frame}.png`
+    const pulse = usingBase && talking && !reduced && mouthOpen
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={`/supervisors/${portraitId}/${frame}.png`}
+        src={src}
         alt=""
         aria-hidden
         draggable={false}
-        onError={() => setImgError(true)}
+        onError={() =>
+          usingBase ? setBaseError(true) : setFrameError(true)
+        }
         className="absolute inset-0 h-full w-full"
-        style={{ objectFit: 'contain', imageRendering: 'pixelated' }}
+        style={{
+          objectFit: 'contain',
+          imageRendering: 'pixelated',
+          filter: pulse
+            ? 'brightness(1.18) contrast(1.02)'
+            : blink && usingBase
+              ? 'brightness(0.72)'
+              : undefined,
+          transform: pulse ? 'translateY(1px)' : undefined,
+          transition: reduced ? undefined : 'filter 90ms',
+        }}
       />
     )
   }
