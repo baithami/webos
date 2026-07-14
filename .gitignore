@@ -35,3 +35,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# sql.js WASM — generated from node_modules by scripts/copy-sqljs-wasm.js (postinstall)
+/public/sql-wasm.wasm
+
+# playwright
+/test-results
+/playwright-report
+/.playwright

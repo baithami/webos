@@ -1,0 +1,7 @@
+# Supervisor portrait art. Loading cascade (see SupervisorConsole FaceScreen):
+#   1. <portraitId>/<expr>_closed.png + <expr>_open.png  — per-expression talk frames
+#      (expressions: neutral, stern, pleased, suspicious)
+#   2. <portraitId>/base.jpg                             — single static portrait,
+#      animated with a brightness talk-pulse + blink dim
+#   3. built-in CSS CRT placeholder face
+# USE_PLACEHOLDER_FACE in SupervisorConsole.tsx forces (3) for testing.

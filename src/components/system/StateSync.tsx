@@ -3,12 +3,23 @@
 import { useEffect } from 'react'
 import { useFileSystemStore } from '@/store/useFileSystemStore'
 import { useSystemStore, type Theme } from '@/store/useSystemStore'
+import { useAuth } from '@/lib/supabase/AuthContext'
+import { apiAuthHeaders } from '@/lib/supabase/client'
+import { useSyncStore } from '@/store/useSyncStore'
 import { seedFileSystem, type NodeMap } from '@/lib/fs'
+import { DEFAULT_WALLPAPER_ID } from '@/lib/wallpapers'
+import { ACCENT_COLORS } from '@/lib/constants'
 
-// Syncs the whole virtual file system + user settings with the server, so they
-// follow the user across devices. Loads once on boot, then debounce-saves any
-// change. The first time the server is empty, it adopts whatever was in this
-// browser's old localStorage (one-time migration) before taking over.
+// Syncs the whole virtual file system + user settings with the server, PER
+// ACCOUNT. Each signed-in Supabase user has their own server-side state
+// (/api/state?key=<uid>); logged-out play uses key 'guest'. So every email gets
+// its own desktop, files, theme, and wallpaper — fully isolated from other
+// accounts and from guest mode. Loads on mount / whenever the account changes,
+// then debounce-saves any change.
+//
+// A brand-new account starts from a FRESH seeded desktop (NOT this browser's
+// localStorage), so a previous account's or guest's files never bleed in. Only
+// the 'guest' key adopts the old per-browser localStorage as a one-time import.
 
 const SAVE_DEBOUNCE_MS = 700
 
@@ -16,6 +27,12 @@ interface Settings {
   theme?: Theme
   accent?: string
   wallpaperId?: string
+}
+
+const DEFAULT_SETTINGS: Settings = {
+  theme: 'dark',
+  accent: ACCENT_COLORS[0].value,
+  wallpaperId: DEFAULT_WALLPAPER_ID,
 }
 
 function readLocalNodes(): NodeMap | null {
@@ -39,70 +56,137 @@ function readLocalSettings(): Settings | null {
   }
 }
 
+// Apply settings to the live store. Always sets all three fields so switching
+// accounts can't leave the previous account's theme/wallpaper lingering.
 function applySettings(s: Settings | null) {
-  if (!s) return
-  const patch: Partial<Settings> = {}
-  if (s.theme === 'dark' || s.theme === 'light') patch.theme = s.theme
-  if (typeof s.accent === 'string') patch.accent = s.accent
-  if (typeof s.wallpaperId === 'string') patch.wallpaperId = s.wallpaperId
-  if (Object.keys(patch).length) useSystemStore.setState(patch)
+  const merged = { ...DEFAULT_SETTINGS, ...(s ?? {}) }
+  useSystemStore.setState({
+    theme: merged.theme === 'light' ? 'light' : 'dark',
+    accent:
+      typeof merged.accent === 'string'
+        ? merged.accent
+        : DEFAULT_SETTINGS.accent!,
+    wallpaperId:
+      typeof merged.wallpaperId === 'string'
+        ? merged.wallpaperId
+        : DEFAULT_SETTINGS.wallpaperId!,
+  })
 }
 
-async function saveState() {
+async function saveState(key: string) {
   const nodes = useFileSystemStore.getState().nodes
   const { theme, accent, wallpaperId } = useSystemStore.getState()
   try {
-    await fetch('/api/state', {
+    const res = await fetch(`/api/state?key=${encodeURIComponent(key)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await apiAuthHeaders()),
+      },
       body: JSON.stringify({ nodes, settings: { theme, accent, wallpaperId } }),
     })
+    useSyncStore.getState().reportStateSync(res.ok ? 'ok' : 'error')
   } catch {
     // Offline / server down — keep working from memory; next change retries.
+    useSyncStore.getState().reportStateSync('error')
   }
 }
 
 export default function StateSync() {
-  // Load once on mount.
+  const userId = useAuth().user?.id ?? null
+  const stateKey = userId ?? 'guest'
+
+  // One-time data wipe for v2 reskin — runs once total, not per account.
+  useEffect(() => {
+    if (!localStorage.getItem('webos-v2-reset-done')) {
+      localStorage.clear()
+      localStorage.setItem('webos-v2-reset-done', '1')
+    }
+  }, [])
+
+  // Load this account's state whenever the account changes.
+  //
+  // FAILURE POLICY: a failed fetch is NOT the same as "server has nothing".
+  // Seeding + saving after a failed read would overwrite the account's real
+  // server state with a fresh desktop the moment the network blips. So on
+  // failure: an account key retries with backoff and stays un-hydrated
+  // (which also blocks the debounced saver); the guest key falls back to
+  // localStorage so offline play works, but never writes the seed back.
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    useFileSystemStore.setState({ hydrated: false })
+
+    const load = async (attempt: number) => {
       let nodes: NodeMap | null = null
       let settings: Settings | null = null
+      let loadFailed = false
       try {
-        const res = await fetch('/api/state', { cache: 'no-store' })
+        const res = await fetch(
+          `/api/state?key=${encodeURIComponent(stateKey)}`,
+          { cache: 'no-store', headers: await apiAuthHeaders() }
+        )
         if (res.ok) {
           const data = await res.json()
           if (data?.nodes && Object.keys(data.nodes).length) nodes = data.nodes
           if (data?.settings) settings = data.settings
+        } else {
+          loadFailed = true
         }
       } catch {
-        // fall through to local/seed
+        loadFailed = true
       }
       if (cancelled) return
 
-      const serverWasEmpty = !nodes
-      if (!nodes) nodes = readLocalNodes() ?? seedFileSystem()
-      if (!settings) settings = readLocalSettings()
+      if (loadFailed) {
+        useSyncStore.getState().reportStateSync('error')
+        if (stateKey !== 'guest') {
+          retryTimer = setTimeout(
+            () => load(attempt + 1),
+            Math.min(30_000, 2_000 * 2 ** attempt)
+          )
+          return
+        }
+      } else {
+        useSyncStore.getState().reportStateSync('ok')
+      }
+
+      const serverWasEmpty = !nodes && !loadFailed
+      if (!nodes) {
+        // Guest: adopt this browser's old localStorage once. A real account:
+        // always start fresh so nothing bleeds across profiles.
+        nodes =
+          stateKey === 'guest'
+            ? readLocalNodes() ?? seedFileSystem()
+            : seedFileSystem()
+      }
+      if (!settings) {
+        settings = stateKey === 'guest' ? readLocalSettings() : DEFAULT_SETTINGS
+      }
 
       applySettings(settings)
       useFileSystemStore.setState({ nodes, hydrated: true })
 
-      // Seed/migrate the server if it had nothing yet.
-      if (serverWasEmpty) saveState()
-    })()
+      // Seed the per-account file the first time the server GENUINELY has
+      // nothing for it — never as a response to a failed read.
+      if (serverWasEmpty) saveState(stateKey)
+    }
+
+    load(0)
     return () => {
       cancelled = true
+      clearTimeout(retryTimer)
     }
-  }, [])
+  }, [stateKey])
 
-  // Debounced save whenever the tree or settings change (post-hydration).
+  // Debounced save whenever the tree or settings change (post-hydration),
+  // always to the current account's key.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
     const schedule = () => {
       if (!useFileSystemStore.getState().hydrated) return
       clearTimeout(timer)
-      timer = setTimeout(saveState, SAVE_DEBOUNCE_MS)
+      timer = setTimeout(() => saveState(stateKey), SAVE_DEBOUNCE_MS)
     }
     const unsubFs = useFileSystemStore.subscribe((s, p) => {
       if (s.nodes !== p.nodes) schedule()
@@ -120,7 +204,7 @@ export default function StateSync() {
       unsubFs()
       unsubSys()
     }
-  }, [])
+  }, [stateKey])
 
   return null
 }

@@ -9,7 +9,7 @@ import {
 } from '@/store/useWindowStore'
 import { Z } from '@/lib/constants'
 import AppContent from '@/components/apps/AppContent'
-import TrafficLights from './TrafficLights'
+import Win95TitleButtons from './Win95TitleButtons'
 
 const { MIN_W, MIN_H, MENUBAR_H } = WINDOW_LIMITS
 const SNAP_EDGE = 6 // px from a screen edge that triggers a snap
@@ -45,8 +45,9 @@ export default function Window({ win, zIndex, active }: WindowProps) {
   const toggleFullscreen = useWindowStore((s) => s.toggleFullscreen)
   const setBounds = useWindowStore((s) => s.setBounds)
 
-  // While dragging/resizing we suppress the CSS transition so motion is 1:1.
-  const [interacting, setInteracting] = useState(false)
+  // Tracked during drag/resize (kept for potential snap/UX hooks); Win95 windows
+  // snap to position with no CSS transition, so it no longer gates styling.
+  const [, setInteracting] = useState(false)
   const lastPointer = useRef({ x: 0, y: 0 })
 
   // ---- Dragging (from the titlebar) -------------------------------------
@@ -139,72 +140,54 @@ export default function Window({ win, zIndex, active }: WindowProps) {
     target.addEventListener('pointerup', onUp)
   }
 
-  // ---- Minimize-to-dock target (transform toward bottom-center) ----------
-  const vw = typeof window !== 'undefined' ? window.innerWidth : 1280
-  const vh = typeof window !== 'undefined' ? window.innerHeight : 800
-  const minimizeTarget = {
-    opacity: 0,
-    scale: 0.12,
-    x: vw / 2 - (win.x + win.width / 2),
-    y: vh - win.y,
-  }
-
   return (
     <motion.div
+      data-window="true"
       role="dialog"
       aria-label={win.title}
       onPointerDownCapture={() => focus(win.id)}
-      initial={{ opacity: 0, scale: 0.95, y: 8 }}
-      animate={
-        win.isMinimized
-          ? minimizeTarget
-          : { opacity: 1, scale: 1, x: 0, y: 0 }
-      }
-      exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.12 } }}
-      transition={{
-        duration: win.isMinimized ? 0.3 : 0.2,
-        ease: win.isMinimized ? 'easeIn' : [0.25, 0.46, 0.45, 0.94],
-      }}
-      className="glass window-shadow absolute flex flex-col overflow-hidden rounded-xl"
+      initial={{ opacity: 0 }}
+      animate={win.isMinimized ? { opacity: 0 } : { opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.08 }}
+      className="win95-raised absolute flex flex-col overflow-hidden"
       style={{
         left: win.x,
         top: win.y,
         width: win.width,
         height: win.height,
         zIndex,
-        transformOrigin: 'bottom center',
         pointerEvents: win.isMinimized ? 'none' : 'auto',
-        transition: interacting
-          ? 'none'
-          : 'left 0.2s ease, top 0.2s ease, width 0.2s ease, height 0.2s ease',
       }}
     >
       {/* Title bar */}
       <div
         onPointerDown={onTitlePointerDown}
         onDoubleClick={() => toggleFullscreen(win.id)}
-        className="relative flex h-7 shrink-0 items-center bg-[var(--color-window-titlebar)] px-3"
+        className={`win95-titlebar shrink-0 ${active ? '' : 'win95-titlebar-inactive'}`}
         style={{ touchAction: 'none' }}
       >
-        <TrafficLights
-          active={active}
-          onClose={() => close(win.id)}
-          onMinimize={() => minimize(win.id)}
-          onFullscreen={() => toggleFullscreen(win.id)}
-        />
-        <span
-          className={`pointer-events-none absolute left-1/2 -translate-x-1/2 text-[13px] font-semibold ${
-            active
-              ? 'text-[var(--color-text-primary)]'
-              : 'text-[var(--color-text-secondary)]'
-          }`}
-        >
+        <span className="flex-1 truncate px-1 text-[12px] font-bold text-white leading-none pointer-events-none select-none">
           {win.title}
         </span>
+        <Win95TitleButtons
+          onClose={() => close(win.id)}
+          onMinimize={() => minimize(win.id)}
+          onMaximize={() => toggleFullscreen(win.id)}
+        />
       </div>
 
-      {/* App body — apps own their own padding/scroll. */}
-      <div className="min-h-0 flex-1 overflow-hidden bg-[var(--color-window-bg)]">
+      {/* App body — apps own their own padding/scroll. The Win95 sunken inner
+          border insets content inside the gray frame. */}
+      <div
+        className="min-h-0 flex-1 overflow-hidden"
+        style={{
+          margin: 4,
+          borderStyle: 'solid',
+          borderWidth: 2,
+          borderColor: '#808080 #ffffff #ffffff #808080',
+        }}
+      >
         <AppContent appId={win.appId} />
       </div>
 

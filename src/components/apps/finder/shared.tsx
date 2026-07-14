@@ -3,27 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FSNode, NodeMap } from '@/lib/fs'
 import { nodeCategory } from '@/lib/fs'
-import { categoryMeta, type FileCategory } from '@/lib/fileTypes'
 
 export type ViewMode = 'icon' | 'list' | 'column'
-
-/** Tint per category for file/folder glyphs. */
-const CATEGORY_COLOR: Record<FileCategory, string> = {
-  folder: '#5aa7ff',
-  text: '#cfd3da',
-  richtext: '#cfd3da',
-  code: '#7ee787',
-  image: '#f0a868',
-  audio: '#f78fb3',
-  video: '#b98cff',
-  pdf: '#ff6b6b',
-  archive: '#d8b36a',
-  unknown: '#c0c4cc',
-}
-
-export function categoryColor(node: FSNode): string {
-  return CATEGORY_COLOR[nodeCategory(node)]
-}
 
 export function FileIcon({ node, size = 40 }: { node: FSNode; size?: number }) {
   const cat = nodeCategory(node)
@@ -35,22 +16,48 @@ export function FileIcon({ node, size = 40 }: { node: FSNode; size?: number }) {
       <img
         src={node.content}
         alt={node.name}
-        className="rounded object-cover"
-        style={{ width: size, height: size }}
+        style={{ width: size, height: size, objectFit: 'cover', border: '1px solid #808080' }}
       />
     )
   }
 
-  const Icon = categoryMeta(cat).icon
+  if (cat === 'folder') return <W95FolderIcon size={size} />
+  return <W95FileIcon size={size} cat={cat} />
+}
+
+/** Classic Win95 yellow folder. */
+function W95FolderIcon({ size }: { size: number }) {
   return (
-    <Icon
-      width={size}
-      height={size}
-      strokeWidth={1.5}
-      style={{ color: categoryColor(node) }}
-      fill={cat === 'folder' ? categoryColor(node) : 'none'}
-      fillOpacity={cat === 'folder' ? 0.18 : 0}
-    />
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="2" y="10" width="28" height="19" fill="#c8a000" stroke="#000000" strokeWidth="1" />
+      <path d="M2,10 L2,8 L10,8 L12,10" fill="#c8a000" stroke="#000000" strokeWidth="1" />
+      <line x1="3" y1="11" x2="29" y2="11" stroke="#ffdd44" strokeWidth="1" />
+      <line x1="2" y1="28" x2="30" y2="28" stroke="#806000" strokeWidth="1" />
+    </svg>
+  )
+}
+
+/** Classic Win95 white page with a folded corner and a colored type stripe. */
+function W95FileIcon({ size, cat }: { size: number; cat: string }) {
+  const badgeColor: Record<string, string> = {
+    text: '#ffffff',
+    richtext: '#0000cc',
+    code: '#007700',
+    audio: '#cc0077',
+    video: '#7700cc',
+    pdf: '#cc0000',
+    archive: '#cc7700',
+    unknown: '#808080',
+  }
+  const badge = badgeColor[cat] ?? '#808080'
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+      <polygon points="4,2 22,2 28,8 28,30 4,30" fill="#ffffff" stroke="#000000" strokeWidth="1" />
+      <polygon points="22,2 22,8 28,8" fill="#c0c0c0" stroke="#000000" strokeWidth="1" />
+      <rect x="7" y="13" width="18" height="3" fill={badge} />
+      <rect x="7" y="18" width="14" height="2" fill="#c0c0c0" />
+      <rect x="7" y="22" width="16" height="2" fill="#c0c0c0" />
+    </svg>
   )
 }
 
@@ -87,7 +94,18 @@ export function RenameInput({
         else if (e.key === 'Escape') onCancel()
       }}
       onBlur={() => onCommit(value)}
-      className="w-full rounded border border-[var(--color-accent)] bg-[var(--color-window-titlebar)] px-1 text-center text-[12px] text-[var(--color-text-primary)] outline-none"
+      style={{
+        width: '100%',
+        border: '2px solid',
+        borderColor: '#808080 #ffffff #ffffff #808080',
+        background: '#ffffff',
+        padding: '1px 4px',
+        textAlign: 'center',
+        fontSize: 12,
+        fontFamily: 'Arial, sans-serif',
+        color: '#000000',
+        outline: 'none',
+      }}
     />
   )
 }

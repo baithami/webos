@@ -10,6 +10,11 @@ import {
   Clock,
   Aperture,
   MessageCircle,
+  Inbox,
+  FolderOpen,
+  Database,
+  NotebookPen,
+  RadioTower,
 } from 'lucide-react'
 
 // Application registry. Full app windows arrive in Layer 4; for now this
@@ -94,6 +99,44 @@ export const APPS: AppDefinition[] = [
     icon: Settings,
     tile: 'from-slate-400 to-slate-600',
     pinned: true,
+  },
+  // SQL Detective game apps (see src/components/apps/sqldetective).
+  {
+    id: 'inbox',
+    name: 'Inbox',
+    icon: Inbox,
+    tile: 'from-amber-500 to-orange-600',
+    pinned: true,
+  },
+  {
+    id: 'casefile',
+    name: 'Case File',
+    icon: FolderOpen,
+    tile: 'from-slate-500 to-slate-700',
+    pinned: true,
+  },
+  {
+    id: 'sql-terminal',
+    name: 'SQL Terminal',
+    icon: Database,
+    tile: 'from-green-700 to-emerald-900',
+    pinned: true,
+  },
+  {
+    id: 'detective-notes',
+    name: 'Detective Notes',
+    icon: NotebookPen,
+    tile: 'from-yellow-600 to-amber-700',
+    pinned: true,
+  },
+  {
+    id: 'supervisor',
+    name: 'Supervisor Console',
+    icon: RadioTower,
+    tile: 'from-stone-400 to-stone-600',
+    // pinned has no effect in the Win95 shell (taskbar shows running windows
+    // only). Summon via Spotlight ("supervisor") + auto-pop on first case open.
+    pinned: false,
   },
 ]
 

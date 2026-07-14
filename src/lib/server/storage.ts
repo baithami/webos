@@ -140,24 +140,35 @@ export const MEDIA_DIR_PATH = MEDIA_DIR
 
 // ---- App state (file-system tree + user settings) ----------------------
 // Stored separately from media so the whole virtual FS + settings can sync
-// across devices. data/state.json holds { nodes, settings }.
+// across devices. State is keyed PER ACCOUNT: each Supabase user id gets its
+// own data/state-<uid>.json, and logged-out play uses data/state-guest.json.
+// This keeps each signed-in email's desktop, files, theme, and wallpaper fully
+// isolated from every other account and from guest mode.
 
 const DATA_DIR =
   process.env.WEBOS_DATA_DIR || path.join(process.cwd(), 'data')
-const STATE_FILE = path.join(DATA_DIR, 'state.json')
 
-export async function readState(): Promise<unknown | null> {
+// Resolve the per-account state file. The key is a Supabase user id (uuid) or
+// 'guest'; anything not matching the safe charset collapses to 'guest' so a
+// malformed/hostile key can never traverse outside the data dir.
+function stateFileFor(key: string): string {
+  const safe = /^[A-Za-z0-9_-]{1,64}$/.test(key) ? key : 'guest'
+  return path.join(DATA_DIR, `state-${safe}.json`)
+}
+
+export async function readState(key = 'guest'): Promise<unknown | null> {
   try {
-    return JSON.parse(await fs.readFile(STATE_FILE, 'utf8'))
+    return JSON.parse(await fs.readFile(stateFileFor(key), 'utf8'))
   } catch {
     return null
   }
 }
 
-export async function writeState(state: unknown): Promise<void> {
+export async function writeState(key: string, state: unknown): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true })
+  const file = stateFileFor(key)
   // Write-then-rename for an atomic update.
-  const tmp = `${STATE_FILE}.${crypto.randomUUID()}.tmp`
+  const tmp = `${file}.${crypto.randomUUID()}.tmp`
   await fs.writeFile(tmp, JSON.stringify(state))
-  await fs.rename(tmp, STATE_FILE)
+  await fs.rename(tmp, file)
 }

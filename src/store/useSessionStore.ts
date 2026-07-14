@@ -1,8 +1,10 @@
 import { create } from 'zustand'
 
-// Session lifecycle. Not persisted — every page load boots fresh and requires
-// the PIN, mirroring a cold start. Flow:
-//   booting → locked → active ⇄ asleep, and asleep wakes back to locked.
+// Session lifecycle. Not persisted — every page load boots fresh. The Supabase
+// magic-link account login (AuthScreen) is the gate now, so there is no PIN
+// step: boot goes straight to active, and sleep wakes straight back to active.
+// Flow: booting → active ⇄ asleep. ('locked' + the PIN LoginScreen remain in
+// the codebase but are no longer entered by the normal flow.)
 
 export type SessionPhase = 'booting' | 'locked' | 'active' | 'asleep'
 
@@ -20,7 +22,7 @@ interface SessionState {
 
 export const useSessionStore = create<SessionState>()((set) => ({
   phase: 'booting',
-  finishBoot: () => set({ phase: 'locked' }),
+  finishBoot: () => set({ phase: 'active' }),
   unlock: (pin) => {
     if (pin === PIN) {
       set({ phase: 'active' })
@@ -29,7 +31,7 @@ export const useSessionStore = create<SessionState>()((set) => ({
     return false
   },
   sleep: () => set({ phase: 'asleep' }),
-  wake: () => set({ phase: 'locked' }),
+  wake: () => set({ phase: 'active' }),
   lock: () => set({ phase: 'locked' }),
 }))
 

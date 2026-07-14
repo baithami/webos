@@ -33,6 +33,7 @@ export default function Wallpaper() {
 
   return (
     <div
+      data-wallpaper="true"
       className="absolute inset-0 h-full w-full"
       style={{ zIndex: Z.desktop, background: gradient }}
     >
@@ -43,6 +44,7 @@ export default function Wallpaper() {
           src={imageSrc}
           alt=""
           aria-hidden
+          draggable={false}
           className="h-full w-full object-cover"
           onError={(e) => {
             // Missing preset/media image → reveal the gradient underneath.
